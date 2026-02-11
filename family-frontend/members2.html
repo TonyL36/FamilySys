@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成员管理系统</title>
+    <style>
+        /* 保持原有样式不变 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #2563eb;
+            border-bottom: 2px solid #2563eb;
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .header-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .header-tab.active {
+            color: #2563eb;
+            border-bottom: 2px solid #2563eb;
+            margin-bottom: -2px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-form input {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        button:disabled {
+            background-color: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        .delete-btn {
+            background-color: #dc2626;
+        }
+
+        .delete-btn:hover {
+            background-color: #b91c1c;
+        }
+
+        .delete-btn.confirm {
+            background-color: #991b1b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+        }
+
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .error-message {
+            color: #dc2626;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .success-message {
+            color: #16a34a;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-tabs">
+            <button class="header-tab active" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
+        </div>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="list">成员列表</button>
+            <button class="tab" data-tab="search">查询成员</button>
+            <button class="tab" data-tab="add">添加成员</button>
+        </div>
+
+        <div id="list" class="tab-content active">
+            <table id="members-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>姓名</th>
+                        <th>代数</th>
+                        <th>性别</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="search" class="tab-content">
+            <form class="search-form" id="search-form">
+                <input type="text" placeholder="输入成员姓名" id="search-input" required>
+                <button type="submit">搜索</button>
+            </form>
+            <div id="search-results"></div>
+        </div>
+
+        <div id="add" class="tab-content">
+            <div class="form-container">
+                <form id="add-form">
+                    <div class="form-group">
+                        <label for="name">姓名</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="generation">代数</label>
+                        <input type="number" id="generation" name="generation" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="gender">性别</label>
+                        <select id="gender" name="gender" required>
+                            <option value="0">男</option>
+                            <option value="1">女</option>
+                        </select>
+                    </div>
+                    <button type="submit">添加成员</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+
+        // 通用的 fetch 配置
+        const fetchConfig = {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            // credentials: 'include',
+            mode:  'cors'
+        };
+
+        // 切换标签页
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // 获取所有成员
+        async function fetchMembers() {
+            try {
+               
+                const response = await fetch(`${API_BASE_URL}/member`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                // console.log("Response status:", response.status);
+                if (!response.ok) throw new Error('Failed to fetch members');
+                const members = await response.json();
+                // console.log(members);
+                renderMembersTable(members);
+            } catch (error) {
+                console.error('Error:', error);
+                showError('获取成员列表失败');
+            }
+        }
+
+        // 渲染成员表格
+        function renderMembersTable(members, container = 'members-table') {
+            const tbody = document.querySelector(`#${container} tbody`) || 
+                         document.querySelector('#search-results');
+            tbody.innerHTML = '';
+
+            members.forEach(member => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${member.id}</td>
+                    <td>${member.name}</td>
+                    <td>${member.generation}</td>
+                    <td>${member.gender === 0 ? '男' : '女'}</td>
+                    <td>
+                        <button class="delete-btn" data-id="${member.id}">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 添加删除按钮事件监听
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', handleDelete);
+            });
+        }
+
+        // 处理删除操作
+        async function handleDelete(e) {
+            const btn = e.target;
+            const id = btn.dataset.id;
+
+            if (btn.classList.contains('confirm')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/member/${id}`, {
+                        ...fetchConfig,
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) throw new Error('Failed to delete member');
+                    fetchMembers();
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError('删除成员失败');
+                }
+            } else {
+                btn.textContent = '确认删除';
+                btn.classList.add('confirm');
+                
+                // 5秒后恢复原状
+                setTimeout(() => {
+                    btn.textContent = '删除';
+                    btn.classList.remove('confirm');
+                }, 5000);
+            }
+        }
+
+        // 添加成员表单提交
+        document.getElementById('add-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/member`, {
+                    ...fetchConfig,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: form.name.value,
+                        generation: parseInt(form.generation.value),
+                        gender: parseInt(form.gender.value)
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to create member');
+                
+                form.reset();
+                showSuccess('成员添加成功');
+                fetchMembers();
+            } catch (error) {
+                console.error('Error:', error);
+                showError('添加成员失败');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // 搜索成员
+        document.getElementById('search-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = true;
+
+            try {
+                const name = document.getElementById('search-input').value;
+                const response = await fetch(`${API_BASE_URL}/member?name=${encodeURIComponent(name)}`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                
+                if (response.status === 404) {
+                    document.getElementById('search-results').innerHTML = '<p>未找到相关成员</p>';
+                    return;
+                }
+
+                if (!response.ok) throw new Error('Failed to search members');
+                
+                const members = await response.json();
+                const table = document.createElement('table');
+                table.id = 'search-results-table';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>姓名</th>
+                            <th>代数</th>
+                            <th>性别</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                document.getElementById('search-results').innerHTML = '';
+                document.getElementById('search-results').appendChild(table);
+                renderMembersTable(Array.isArray(members) ? members : [members], 'search-results-table');
+            } catch (error) {
+                console.error('Error:', error);
+                showError('搜索成员失败');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.querySelector('.container').insertAdjacentElement('afterbegin', errorDiv);
+            setTimeout(() => errorDiv.remove(), 3000);
+        }
+
+        // 显示成功信息
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            document.querySelector('.container').insertAdjacentElement('afterbegin', successDiv);
+            setTimeout(() => successDiv.remove(), 3000);
+        }
+
+        // 初始化加载
+        fetchMembers();
+    </script>
+</body>
+</html>

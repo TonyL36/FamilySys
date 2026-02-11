@@ -1,0 +1,46 @@
+# =================================================================
+# 后端 (family-backend) 忽略规则
+# =================================================================
+# 忽略编译输出文件夹
+**/family-backend/target/
+**/family-backend/out/
+
+# 忽略本地运行产生的日志文件
+**/family-backend/*.log
+
+# 忽略本地数据库文件（防止个人数据泄露）
+**/family-backend/*.db
+**/family-backend/*.sqlite
+
+# 排除 Maven Wrapper (通常建议保留以便他人直接运行)
+!**/family-backend/.mvn/wrapper/maven-wrapper.jar
+
+# =================================================================
+# 前端 (family-frontend) 忽略规则
+# =================================================================
+# 你的前端目前是纯 HTML，通常不需要忽略
+# 但如果以后用了 npm，可以取消下面这行的注释
+# **/family-frontend/node_modules/
+
+# =================================================================
+# IDE 与 开发工具 (通用)
+# =================================================================
+# 忽略 JetBrains (IntelliJ/Cursor) 配置文件
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# 忽略 VS Code 配置文件
+.vscode/
+
+# 忽略 Eclipse 配置文件
+.settings/
+.project
+.classpath
+.factorypath
+
+# 忽略操作系统自动生成的文件
+.DS_Store
+Thumbs.db
+desktop.ini

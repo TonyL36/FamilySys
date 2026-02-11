@@ -1,0 +1,282 @@
+package controller;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import model.Relationship;
+import service.FamilyRelationshipCalculator;
+import service.RelationshipService;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+
+public class RelationshipController implements HttpHandler {
+    private static final Logger logger = LogManager.getLogger(RelationshipController.class);
+    private RelationshipService relationshipService;
+
+    public RelationshipController(RelationshipService relationshipService) {
+        this.relationshipService = relationshipService;
+    }
+
+    @Override
+    public void handle(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
+        try {
+            switch (method) {
+                case "GET":
+                    handleGet(exchange);
+                    break;
+                case "POST":
+                    handlePost(exchange);
+                    break;
+                default:
+                    sendResponse(exchange, 405, createErrorResponse("Method Not Allowed"));
+            }
+        } catch (Exception e) {
+            logger.error("Error handling request: {}", e.getMessage());
+            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"));
+        }
+    }
+
+    private void handlePost(HttpExchange exchange) throws IOException {
+        try {
+            // 读取请求体
+            String requestBody = new String(exchange.getRequestBody().readAllBytes());
+
+            // 验证请求体不为空
+            if (requestBody == null || requestBody.trim().isEmpty()) {
+                sendResponse(exchange, 400, createErrorResponse("Request body cannot be empty"));
+                return;
+            }
+
+            // 解析 JSON
+            JSONObject json;
+            try {
+                json = new JSONObject(requestBody);
+            } catch (Exception e) {
+                sendResponse(exchange, 400, createErrorResponse("Invalid JSON format"));
+                return;
+            }
+
+            // 验证必需字段存在
+            if (!json.has("member1ID") || !json.has("member2ID") || !json.has("relationType")) {
+                sendResponse(exchange, 400, createErrorResponse("Missing required fields: member1ID, member2ID, and relationType are required"));
+                return;
+            }
+
+            // 验证字段类型和值
+            int member1ID, member2ID, relationType;
+            try {
+                member1ID = json.getInt("member1ID");
+                member2ID = json.getInt("member2ID");
+                relationType = json.getInt("relationType");
+            } catch (Exception e) {
+                sendResponse(exchange, 400, createErrorResponse("Invalid field type: member1ID, member2ID, and relationType must be integers"));
+                return;
+            }
+
+            // 验证字段值的有效性
+            if (member1ID <= 0) {
+                sendResponse(exchange, 400, createErrorResponse("member1ID must be positive"));
+                return;
+            }
+            if (member2ID <= 0) {
+                sendResponse(exchange, 400, createErrorResponse("member2ID must be positive"));
+                return;
+            }
+            if (relationType < 1 || relationType > 32) {
+                sendResponse(exchange, 400, createErrorResponse("relationType must be between 1 and 32"));
+                return;
+            }
+
+            // 验证成员不能是同一个人
+            if (member1ID == member2ID) {
+                sendResponse(exchange, 400, createErrorResponse("member1ID and member2ID cannot be the same"));
+                return;
+            }
+
+            // 尝试添加关系
+            boolean success = relationshipService.addRelationship(member1ID, member2ID, relationType);
+            if (success) {
+                sendResponse(exchange, 201, createSuccessResponse("Relationship added successfully"));
+            } else {
+                sendResponse(exchange, 400, createErrorResponse("Failed to add relationship. Please check if members exist and the relationship is valid."));
+            }
+        } catch (Exception e) {
+            logger.error("Error in handlePost: {}", e.getMessage());
+            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"));
+        }
+    }
+
+    private void handleGet(HttpExchange exchange) throws IOException {
+        try {
+            String query = exchange.getRequestURI().getQuery();
+            if (query != null) {
+                if (query.startsWith("memberID=")) {
+                    String memberIDStr = query.substring(9);
+                    if (memberIDStr.trim().isEmpty()) {
+                        sendResponse(exchange, 400, createErrorResponse("memberID cannot be empty"));
+                        return;
+                    }
+                    try {
+                        int memberID = Integer.parseInt(memberIDStr);
+                        if (memberID <= 0) {
+                            sendResponse(exchange, 400, createErrorResponse("memberID must be positive"));
+                            return;
+                        }
+                        List<Relationship> relationships = relationshipService.getRelationshipsForMember(memberID);
+                        sendResponse(exchange, 200, relationshipsToJson(relationships).toString());
+                    } catch (NumberFormatException e) {
+                        sendResponse(exchange, 400, createErrorResponse("Invalid memberID format"));
+                    }
+                } else if (query.startsWith("relationID=")) {
+                    String relationIDStr = query.substring(11);
+                    if (relationIDStr.trim().isEmpty()) {
+                        sendResponse(exchange, 400, createErrorResponse("relationID cannot be empty"));
+                        return;
+                    }
+                    try {
+                        int relationID = Integer.parseInt(relationIDStr);
+                        if (relationID <= 0) {
+                            sendResponse(exchange, 400, createErrorResponse("relationID must be positive"));
+                            return;
+                        }
+                        Relationship relationship = relationshipService.getRelationshipByRelationID(relationID);
+                        if (relationship != null) {
+                            sendResponse(exchange, 200, relationshipToJson(relationship).toString());
+                        } else {
+                            sendResponse(exchange, 404, createErrorResponse("Relationship not found"));
+                        }
+                    } catch (NumberFormatException e) {
+                        sendResponse(exchange, 400, createErrorResponse("Invalid relationID format"));
+                    }
+                } else if (query.startsWith("relationType=")) {
+                    String relationTypeStr = query.substring(13).split("&")[0].trim();
+                    if (relationTypeStr.isEmpty()) {
+                        sendResponse(exchange, 400, createErrorResponse("relationType cannot be empty"));
+                        return;
+                    }
+                    try {
+                        int relationType = Integer.parseInt(relationTypeStr);
+                        if (relationType < 1 || relationType > 32) {
+                            sendResponse(exchange, 400, createErrorResponse("relationType must be between 1 and 32"));
+                            return;
+                        }
+                        List<Relationship> relationships = relationshipService.getRelationshipsByRelationType(relationType);
+                        sendResponse(exchange, 200, relationshipsToJson(relationships).toString());
+                    } catch (NumberFormatException e) {
+                        sendResponse(exchange, 400, createErrorResponse("Invalid relationType format"));
+                    }
+                } else if (query.startsWith("distantRelative=")) {
+                    // 处理远亲关系查询
+                    String[] params = query.substring(16).split("&");
+                    int member1ID = -1, member2ID = -1;
+                    
+                    for (String param : params) {
+                        if (param.startsWith("member1ID=")) {
+                            try {
+                                member1ID = Integer.parseInt(param.substring(10));
+                            } catch (NumberFormatException e) {
+                                sendResponse(exchange, 400, createErrorResponse("Invalid member1ID format"));
+                                return;
+                            }
+                        } else if (param.startsWith("member2ID=")) {
+                            try {
+                                member2ID = Integer.parseInt(param.substring(10));
+                            } catch (NumberFormatException e) {
+                                sendResponse(exchange, 400, createErrorResponse("Invalid member2ID format"));
+                                return;
+                            }
+                        }
+                    }
+                    
+                    if (member1ID <= 0 || member2ID <= 0) {
+                        sendResponse(exchange, 400, createErrorResponse("member1ID and member2ID must be positive integers"));
+                        return;
+                    }
+                    
+                    FamilyRelationshipCalculator.DistantRelativeResult result = relationshipService.findDistantRelative(member1ID, member2ID);
+                    sendResponse(exchange, 200, distantRelativeResultToJson(result).toString());
+                } else {
+                    sendResponse(exchange, 400, createErrorResponse("Invalid query parameter"));
+                }
+            } else {
+                List<Relationship> relationships = relationshipService.getAllRelationships();
+                sendResponse(exchange, 200, relationshipsToJson(relationships).toString());
+            }
+        } catch (Exception e) {
+            logger.error("Error in handleGet: {}", e.getMessage());
+            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"));
+        }
+    }
+
+    private JSONObject distantRelativeResultToJson(FamilyRelationshipCalculator.DistantRelativeResult result) {
+        JSONObject json = new JSONObject();
+        json.put("isDistantRelative", result.isDistantRelative());
+        json.put("description", result.getDescription());
+        json.put("closestCommonAncestorID", result.getClosestCommonAncestorID());
+        json.put("commonAncestorCount", result.getCommonAncestorCount());
+        JSONArray nodesArr = new JSONArray();
+        for (FamilyRelationshipCalculator.PathNode n : result.getPathNodes()) {
+            JSONObject o = new JSONObject();
+            o.put("id", n.getId());
+            o.put("name", n.getName());
+            nodesArr.put(o);
+        }
+        json.put("pathNodes", nodesArr);
+        JSONArray edgesArr = new JSONArray();
+        for (FamilyRelationshipCalculator.PathEdge e : result.getPathEdges()) {
+            JSONObject o = new JSONObject();
+            o.put("fromId", e.getFromId());
+            o.put("toId", e.getToId());
+            o.put("description", e.getDescription());
+            edgesArr.put(o);
+        }
+        json.put("pathEdges", edgesArr);
+        return json;
+    }
+
+    private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        exchange.sendResponseHeaders(statusCode, response.getBytes().length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response.getBytes());
+        }
+    }
+
+    private JSONArray relationshipsToJson(List<Relationship> relationships) {
+        JSONArray jsonArray = new JSONArray();
+        for (Relationship relationship : relationships) {
+            jsonArray.put(relationshipToJson(relationship));
+        }
+        return jsonArray;
+    }
+
+    private JSONObject relationshipToJson(Relationship relationship) {
+        JSONObject json = new JSONObject();
+        json.put("relationID", relationship.getRelationID());
+        json.put("member1", relationship.getMember1());
+        json.put("member1Name", relationship.getMember1Name());
+        json.put("member2", relationship.getMember2());
+        json.put("member2Name", relationship.getMember2Name());
+        json.put("relation", relationship.getRelation());
+        json.put("description", relationship.getRelationshipDescription());
+        return json;
+    }
+
+    private String createErrorResponse(String message) {
+        JSONObject json = new JSONObject();
+        json.put("error", message);
+        return json.toString();
+    }
+
+    private String createSuccessResponse(String message) {
+        JSONObject json = new JSONObject();
+        json.put("message", message);
+        return json.toString();
+    }
+}

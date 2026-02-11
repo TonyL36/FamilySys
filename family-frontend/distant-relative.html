@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>远亲关系查询</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; background: #f8fafc; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        .header-tabs { display: flex; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; gap: 4px; }
+        .header-tab {
+            padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; color: #64748b;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .header-tab:hover { color: #2563eb; }
+        .header-tab.active { color: #2563eb; border-bottom: 2px solid #2563eb; margin-bottom: -2px; font-weight: 600; }
+        .card {
+            background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 24px;
+        }
+        .card h2 { font-size: 18px; color: #1e293b; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+        .query-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .query-row label { font-weight: 500; color: #475569; }
+        .query-row select {
+            min-width: 220px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px;
+        }
+        .query-row button {
+            padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 15px; cursor: pointer;
+        }
+        .query-row button:hover { background: #1d4ed8; }
+        .query-row button:disabled { background: #93c5fd; cursor: not-allowed; }
+        .result-summary { margin-bottom: 20px; padding: 12px; border-radius: 6px; font-size: 15px; }
+        .result-summary.success { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        .result-summary.fail { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        #graph-container {
+            min-height: 280px; padding: 24px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
+            overflow: auto;
+        }
+        #graph-svg { display: block; margin: 0 auto; }
+        .node rect { fill: #2563eb; stroke: #1d4ed8; stroke-width: 2; rx: 8; }
+        .node text { fill: #fff; font-size: 14px; font-weight: 500; text-anchor: middle; }
+        .link line { stroke: #64748b; stroke-width: 2; }
+        .link text { fill: #475569; font-size: 13px; font-weight: 500; text-anchor: middle; }
+        .error-message { color: #dc2626; margin-top: 8px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-tabs">
+            <button class="header-tab" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab active">远亲关系查询</button>
+        </div>
+
+        <div class="card">
+            <h2>选择两人查询关系链</h2>
+            <div class="query-row">
+                <label>成员一</label>
+                <select id="member1-id"><option value="">请选择...</option></select>
+                <label>成员二</label>
+                <select id="member2-id"><option value="">请选择...</option></select>
+                <button type="button" id="btn-query">查询关系链</button>
+            </div>
+        </div>
+
+        <div class="card" id="result-card" style="display: none;">
+            <h2>查询结果</h2>
+            <div id="result-summary" class="result-summary"></div>
+            <div id="graph-container">
+                <svg id="graph-svg"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const fetchConfig = { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, mode: 'cors' };
+
+        async function loadMembers() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/member`, { ...fetchConfig, method: 'GET' });
+                if (!res.ok) throw new Error('获取成员失败');
+                const members = await res.json();
+                members.sort((a, b) => b.id - a.id);
+                const opt = members.map(m => `<option value="${m.id}">${m.name} (ID: ${m.id})</option>`).join('');
+                document.getElementById('member1-id').innerHTML = '<option value="">请选择...</option>' + opt;
+                document.getElementById('member2-id').innerHTML = '<option value="">请选择...</option>' + opt;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderGraph(pathNodes, pathEdges) {
+            const svg = document.getElementById('graph-svg');
+            svg.innerHTML = '';
+            if (!pathNodes || pathNodes.length === 0) return;
+
+            const nodeW = 100, nodeH = 44, gap = 120, labelGap = 36;
+            const totalW = pathNodes.length * nodeW + (pathNodes.length - 1) * gap;
+            const totalH = nodeH + 2 * labelGap;
+            svg.setAttribute('width', Math.max(totalW, 400));
+            svg.setAttribute('height', totalH);
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+            pathNodes.forEach((n, i) => {
+                const x = 24 + i * (nodeW + gap) + nodeW / 2;
+                const y = labelGap + nodeH / 2;
+                const nodeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                nodeG.setAttribute('class', 'node');
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', x - nodeW / 2);
+                rect.setAttribute('y', y - nodeH / 2);
+                rect.setAttribute('width', nodeW);
+                rect.setAttribute('height', nodeH);
+                rect.setAttribute('rx', 8);
+                rect.setAttribute('fill', '#2563eb');
+                rect.setAttribute('stroke', '#1d4ed8');
+                rect.setAttribute('stroke-width', 2);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', y + 5);
+                text.setAttribute('fill', '#fff');
+                text.setAttribute('font-size', 14);
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = n.name || ('ID:' + n.id);
+                nodeG.appendChild(rect);
+                nodeG.appendChild(text);
+                g.appendChild(nodeG);
+            });
+
+            pathEdges.forEach((e, i) => {
+                const x1 = 24 + i * (nodeW + gap) + nodeW;
+                const x2 = 24 + (i + 1) * (nodeW + gap);
+                const y = labelGap + nodeH / 2;
+                const linkG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                linkG.setAttribute('class', 'link');
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y);
+                line.setAttribute('stroke', '#64748b');
+                line.setAttribute('stroke-width', 2);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', (x1 + x2) / 2);
+                text.setAttribute('y', y - 10);
+                text.setAttribute('fill', '#475569');
+                text.setAttribute('font-size', 13);
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = e.description || '';
+                linkG.appendChild(line);
+                linkG.appendChild(text);
+                g.appendChild(linkG);
+            });
+
+            svg.appendChild(g);
+        }
+
+        document.getElementById('btn-query').addEventListener('click', async () => {
+            const m1 = document.getElementById('member1-id').value;
+            const m2 = document.getElementById('member2-id').value;
+            const card = document.getElementById('result-card');
+            const summary = document.getElementById('result-summary');
+
+            if (!m1 || !m2) {
+                summary.className = 'result-summary fail';
+                summary.textContent = '请选择两个成员后再查询。';
+                card.style.display = 'block';
+                renderGraph([], []);
+                return;
+            }
+            if (m1 === m2) {
+                summary.className = 'result-summary fail';
+                summary.textContent = '请选择不同的两名成员。';
+                card.style.display = 'block';
+                renderGraph([], []);
+                return;
+            }
+
+            const btn = document.getElementById('btn-query');
+            btn.disabled = true;
+            summary.className = 'result-summary';
+            summary.textContent = '正在查询...';
+            card.style.display = 'block';
+            renderGraph([], []);
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/relationship?distantRelative=&member1ID=${m1}&member2ID=${m2}`, { ...fetchConfig, method: 'GET' });
+                if (!res.ok) throw new Error('请求失败');
+                const result = await res.json();
+
+                if (result.isDistantRelative) {
+                    summary.className = 'result-summary success';
+                    summary.textContent = result.description || '存在亲属关系。';
+                    renderGraph(result.pathNodes || [], result.pathEdges || []);
+                } else {
+                    summary.className = 'result-summary fail';
+                    summary.textContent = result.description || '无亲属关系。';
+                    renderGraph([], []);
+                }
+            } catch (e) {
+                console.error(e);
+                summary.className = 'result-summary fail';
+                summary.textContent = '查询失败：' + (e.message || '网络或服务异常');
+                renderGraph([], []);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        loadMembers();
+    </script>
+</body>
+</html>
