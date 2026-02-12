@@ -11,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class MemberController implements HttpHandler {
@@ -80,7 +81,7 @@ public class MemberController implements HttpHandler {
     private void handlePost(HttpExchange exchange) throws IOException {
         try {
             // 读取请求体
-            String requestBody = new String(exchange.getRequestBody().readAllBytes());
+            String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 
             // 验证请求体不为空
             if (requestBody == null || requestBody.trim().isEmpty()) {
@@ -180,10 +181,11 @@ public class MemberController implements HttpHandler {
     }
 
     private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
-        exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.sendResponseHeaders(statusCode, response.getBytes().length);
+        exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+        byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(statusCode, responseBytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
-            os.write(response.getBytes());
+            os.write(responseBytes);
         }
     }
 

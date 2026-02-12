@@ -118,10 +118,42 @@
                 return { fill: '#93c5fd', stroke: '#60a5fa' };                     // 更远
             }
 
-            function renderGraph(pathNodes, pathEdges, kinshipCoefficient) {
+            function orderPath(pathNodes, pathEdges, member1Id, member2Id) {
+                if (!pathNodes || !pathEdges || pathEdges.length === 0) return { nodes: pathNodes, edges: pathEdges };
+                const nodeMap = new Map(pathNodes.map(n => [String(n.id), n]));
+                const edges = [];
+                const nodes = [];
+                let current = member1Id != null ? String(member1Id) : (pathEdges[0].fromId != null ? String(pathEdges[0].fromId) : null);
+                if (current == null) return { nodes: pathNodes, edges: pathEdges };
+                const startNode = nodeMap.get(current) || { id: parseInt(current, 10), name: 'ID:' + current };
+                nodes.push(startNode);
+                const used = new Set();
+                for (let i = 0; i < pathEdges.length; i++) {
+                    let foundIndex = -1;
+                    for (let j = 0; j < pathEdges.length; j++) {
+                        if (used.has(j)) continue;
+                        if (String(pathEdges[j].fromId) === current) { foundIndex = j; break; }
+                    }
+                    if (foundIndex === -1) break;
+                    const edge = pathEdges[foundIndex];
+                    used.add(foundIndex);
+                    edges.push(edge);
+                    current = String(edge.toId);
+                    nodes.push(nodeMap.get(current) || { id: parseInt(current, 10), name: 'ID:' + current });
+                }
+                if (edges.length !== pathEdges.length) return { nodes: pathNodes, edges: pathEdges };
+                if (member2Id != null && String(member2Id) !== current) return { nodes: pathNodes, edges: pathEdges };
+                return { nodes, edges };
+            }
+
+            function renderGraph(pathNodes, pathEdges, kinshipCoefficient, member1Id, member2Id) {
             const svg = document.getElementById('graph-svg');
             svg.innerHTML = '';
             if (!pathNodes || pathNodes.length === 0) return;
+
+            const ordered = orderPath(pathNodes, pathEdges, member1Id, member2Id);
+            pathNodes = ordered.nodes;
+            pathEdges = ordered.edges;
 
             const nodeW = 100, nodeH = 44, gap = 120, labelGap = 36, padding = 48;
             const totalW = padding + pathNodes.length * nodeW + (pathNodes.length - 1) * gap;
@@ -198,14 +230,14 @@
                 summary.className = 'result-summary fail';
                 summary.textContent = '请选择两个成员后再查询。';
                 card.style.display = 'block';
-                renderGraph([], [], null);
+                renderGraph([], [], null, m1, m2);
                 return;
             }
             if (m1 === m2) {
                 summary.className = 'result-summary fail';
                 summary.textContent = '请选择不同的两名成员。';
                 card.style.display = 'block';
-                renderGraph([], [], null);
+                renderGraph([], [], null, m1, m2);
                 return;
             }
 
@@ -214,7 +246,7 @@
             summary.className = 'result-summary';
             summary.textContent = '正在查询...';
             card.style.display = 'block';
-            renderGraph([], [], null);
+            renderGraph([], [], null, m1, m2);
 
             try {
                 const res = await fetch(`${API_BASE_URL}/relationship?distantRelative=&member1ID=${m1}&member2ID=${m2}`, { ...fetchConfig, method: 'GET' });
@@ -233,18 +265,18 @@
                     if (preciseTerm && preciseTerm.length > 0) kinHtml += '<strong>精确称谓</strong>：' + preciseTerm + '。<br>';
                     kinHtml += '<strong>社会关系深度（Kinship Coefficient）</strong>：φ = ' + phi.toFixed(4) + '（公式 φ = (1/2)^(L+R)，路径 ' + (pathLen || 0) + ' 步）。颜色越深表示越亲。';
                     kinDiv.innerHTML = kinHtml;
-                    renderGraph(result.pathNodes || [], result.pathEdges || [], phi);
+                    renderGraph(result.pathNodes || [], result.pathEdges || [], phi, m1, m2);
                 } else {
                     summary.className = 'result-summary fail';
                     summary.textContent = result.description || '无亲属关系。';
                     document.getElementById('kinship-info').style.display = 'none';
-                    renderGraph([], [], null);
+                    renderGraph([], [], null, m1, m2);
                 }
             } catch (e) {
                 console.error(e);
                 summary.className = 'result-summary fail';
                 summary.textContent = '查询失败：' + (e.message || '网络或服务异常');
-                renderGraph([], [], null);
+                renderGraph([], [], null, m1, m2);
             } finally {
                 btn.disabled = false;
             }

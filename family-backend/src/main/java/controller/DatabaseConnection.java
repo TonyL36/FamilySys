@@ -2,6 +2,11 @@
 package controller;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -11,26 +16,39 @@ public class DatabaseConnection {
     private static final String DB_URL = "jdbc:sqlite:family.db";
 
     private static String getCorrectDatabaseFile() {
-        File dbFile = new File(DB_URL.replace("jdbc:sqlite:", ""));
-        if (!dbFile.exists()) {
-            // 如果指定的文件不存在，尝试在当前目录及其父目录中查找
-            File currentDir = new File(".");
-            for (int i = 0; i < 3; i++) { // 向上查找3层目录
-                File[] files = currentDir.listFiles((d, name) -> name.contains("family") && name.endsWith(".db"));
-                if (files != null && files.length > 0) {
-                    return "jdbc:sqlite:" + files[0].getAbsolutePath();
+        File resourceDb = new File("src/main/resources/family.db");
+        if (resourceDb.exists()) {
+            return "jdbc:sqlite:" + resourceDb.getAbsolutePath();
+        }
+        File backendResourceDb = new File("family-backend/src/main/resources/family.db");
+        if (backendResourceDb.exists()) {
+            return "jdbc:sqlite:" + backendResourceDb.getAbsolutePath();
+        }
+        URL resource = DatabaseConnection.class.getClassLoader().getResource("family.db");
+        if (resource != null) {
+            if ("file".equalsIgnoreCase(resource.getProtocol())) {
+                try {
+                    return "jdbc:sqlite:" + new File(resource.toURI()).getAbsolutePath();
+                } catch (Exception ignored) {
                 }
-                currentDir = currentDir.getParentFile();
-                if (currentDir == null) break;
+            } else {
+                try (InputStream in = resource.openStream()) {
+                    Path temp = Files.createTempFile("family", ".db");
+                    Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
+                    temp.toFile().deleteOnExit();
+                    return "jdbc:sqlite:" + temp.toAbsolutePath();
+                } catch (Exception ignored) {
+                }
             }
         }
         return DB_URL;
     }
 
-    public static Connection getConnection() throws SQLException {
+public static Connection getConnection() throws SQLException {
         String url = getCorrectDatabaseFile();
-        //System.out.println("Attempting to connect to: " + url);
         Connection conn = DriverManager.getConnection(url);
+        // 设置UTF-8编码
+        conn.createStatement().execute("PRAGMA encoding = 'UTF-8'");
         initializeDatabase(conn);
         return conn;
     }

@@ -76,6 +76,14 @@
             margin-top: 5px;
             font-size: 14px;
         }
+
+        .result-message {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -86,7 +94,12 @@
                 <label for="root-member">选择起始成员：</label>
                 <select id="root-member"></select>
             </div>
+            <div class="form-group">
+                <label for="target-member">选择目标成员：</label>
+                <select id="target-member"></select>
+            </div>
             <button onclick="generateTree()">生成关系树</button>
+            <button onclick="queryDistantRelative()">查询远亲关系</button>
         </div>
         <div id="tree-container"></div>
     </div>
@@ -306,11 +319,67 @@
             setTimeout(() => errorDiv.remove(), 3000);
         }
 
+        // 显示远亲关系结果
+        function showDistantRelativeResult(result) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result-message';
+            resultDiv.style.marginTop = '15px';
+            resultDiv.style.padding = '10px';
+            resultDiv.style.background = '#f0f9ff';
+            resultDiv.style.border = '1px solid #bae6fd';
+            resultDiv.style.borderRadius = '4px';
+            
+            let content = `<strong>关系结果：</strong> ${result.description}`;
+            if (result.preciseKinshipTerm) {
+                content += `<br><strong>精确称谓：</strong> ${result.preciseKinshipTerm}`;
+            }
+            if (result.pathLength > 0) {
+                content += `<br><strong>亲缘系数：</strong> ${result.kinshipCoefficient.toFixed(6)}`;
+            }
+            
+            resultDiv.innerHTML = content;
+            document.querySelector('.controls').appendChild(resultDiv);
+            setTimeout(() => resultDiv.remove(), 5000);
+        }
+
+        // 查询远亲关系
+        async function queryDistantRelative() {
+            const member1Id = parseInt(document.getElementById('root-member').value);
+            const member2Id = parseInt(document.getElementById('target-member').value);
+            
+            if (!member1Id || !member2Id) {
+                showError('请选择起始成员和目标成员');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/relationship?distantRelative=1&member1ID=${member1Id}&member2ID=${member2Id}`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('查询失败');
+                }
+                
+                const result = await response.json();
+                showDistantRelativeResult(result);
+            } catch (error) {
+                showError('查询远亲关系失败: ' + error.message);
+            }
+        }
+
         // 页面加载完成后初始化
         window.onload = async function() {
             initChart();
             await loadMembers();
             await loadRelationships();
+            
+            // 填充目标成员选择框
+            const targetSelect = document.getElementById('target-member');
+            targetSelect.innerHTML = allMembers
+                .map(member => `<option value="${member.id}">${member.name} (ID: ${member.id})</option>`)
+                .join('');
             
             // 自适应窗口大小
             window.onresize = function() {
