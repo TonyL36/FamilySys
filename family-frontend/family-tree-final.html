@@ -6,81 +6,96 @@
     <title>家族关系树</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             line-height: 1.6;
             color: #333;
+            background: #f5f7fa;
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            background: #fff;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            padding: 0 8px;
         }
-
+        .header-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #64748b;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s, border-color 0.2s;
+        }
+        .header-tab:hover {
+            color: #1e40af;
+            background: #dbeafe;
+        }
+        .header-tab.active {
+            color: #1d4ed8;
+            border-bottom: 2px solid #1d4ed8;
+            margin-bottom: -2px;
+            font-weight: 600;
+        }
         #tree-container {
             width: 100%;
             height: 800px;
-            border: 1px solid #eee;
             margin-top: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
         }
-
         .controls {
             margin-bottom: 20px;
-            padding: 15px;
-            background: #f8fafc;
+            padding: 20px;
+            background: #fff;
             border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
         }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; color: #475569; }
         select {
             width: 100%;
-            max-width: 300px;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
+            max-width: 320px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 15px;
         }
-
         button {
-            padding: 8px 16px;
-            background-color: #2563eb;
+            padding: 10px 20px;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            font-size: 15px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: background 0.2s, box-shadow 0.2s;
         }
-
         button:hover {
-            background-color: #1d4ed8;
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-
-        .error-message {
-            color: #dc2626;
-            margin-top: 5px;
-            font-size: 14px;
-        }
+        .error-message { color: #dc2626; margin-top: 8px; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>家族关系树</h1>
+        <div class="header-tabs">
+            <button class="header-tab" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab active">家族关系树</button>
+            <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
+        </div>
         <div class="controls">
             <div class="form-group">
                 <label for="root-member">选择起始成员：</label>
@@ -114,51 +129,28 @@
             }
             myChart = echarts.init(document.getElementById('tree-container'));
             
-            // 设置默认配置
+            // 默认配置（原版）
             const option = {
-                tooltip: {
-                    trigger: 'item',
-                    triggerOn: 'mousemove'
-                },
-                series: [
-                    {
-                        type: 'tree',
-                        data: [],
-                        top: '5%',
-                        left: '20%',
-                        bottom: '5%',
-                        right: '20%',
-                        symbolSize: 10,
-                        orient: 'vertical', // 默认竖向布局
-                        layout: 'orthogonal',
-                        initialTreeDepth: -1,
-                        lineStyle: {
-                            color: '#2563eb',
-                            width: 2,
-                            curveness: 0.5
-                        },
-                        label: {
-                            position: 'top',
-                            rotate: 0,
-                            verticalAlign: 'middle',
-                            align: 'middle',
-                            fontSize: 14
-                        },
-                        leaves: {
-                            label: {
-                                position: 'bottom',
-                                verticalAlign: 'middle',
-                                align: 'middle'
-                            }
-                        },
-                        emphasis: {
-                            focus: 'descendant'
-                        },
-                        expandAndCollapse: true,
-                        animationDuration: 550,
-                        animationDurationUpdate: 750
-                    }
-                ]
+                tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+                series: [{
+                    type: 'tree',
+                    data: [],
+                    top: '5%',
+                    left: '20%',
+                    bottom: '5%',
+                    right: '20%',
+                    symbolSize: 10,
+                    orient: 'vertical',
+                    layout: 'orthogonal',
+                    initialTreeDepth: -1,
+                    lineStyle: { color: '#2563eb', width: 2, curveness: 0.5 },
+                    label: { position: 'top', rotate: 0, verticalAlign: 'middle', align: 'middle', fontSize: 14 },
+                    leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'middle' } },
+                    emphasis: { focus: 'descendant' },
+                    expandAndCollapse: true,
+                    animationDuration: 550,
+                    animationDurationUpdate: 750
+                }]
             };
             
             myChart.setOption(option);
@@ -238,7 +230,7 @@
             return null;
         }
 
-        // 递归构建树
+        // 递归构建树（原版：配偶先加入子节点，再添加子女）
         function buildFamilyTree(memberId) {
             const member = allMembers.find(m => m.id === memberId);
             if (!member) return null;
@@ -249,16 +241,15 @@
                 children: []
             };
 
-            // 查找配偶并单独显示为横向
+            // 查找配偶并单独显示
             const spouse = findSpouse(memberId);
             if (spouse) {
                 node.children.push({
                     name: spouse.name,
                     id: spouse.id,
                     children: [],
-                    layout: 'horizontal', // 强制配偶为横向
                     lineStyle: {
-                        color: '#e11d48', // 配偶关系用红色线
+                        color: '#e11d48',
                         width: 2,
                         type: 'dashed'
                     }
@@ -292,7 +283,7 @@
                 return;
             }
 
-            // 更新图表
+            // 更新图表（原版配置）
             myChart.setOption({
                 series: [{
                     type: 'tree',
@@ -302,31 +293,13 @@
                     bottom: '5%',
                     right: '20%',
                     symbolSize: 10,
-                    orient: 'vertical', // 子女竖向显示
+                    orient: 'vertical',
                     layout: 'orthogonal',
                     initialTreeDepth: -1,
-                    lineStyle: {
-                        color: '#2563eb',
-                        width: 2,
-                        curveness: 0.5
-                    },
-                    label: {
-                        position: 'top',
-                        rotate: 0,
-                        verticalAlign: 'middle',
-                        align: 'middle',
-                        fontSize: 14
-                    },
-                    leaves: {
-                        label: {
-                            position: 'bottom',
-                            verticalAlign: 'middle',
-                            align: 'middle'
-                        }
-                    },
-                    emphasis: {
-                        focus: 'descendant'
-                    },
+                    lineStyle: { color: '#2563eb', width: 2, curveness: 0.5 },
+                    label: { position: 'top', rotate: 0, verticalAlign: 'middle', align: 'middle', fontSize: 14 },
+                    leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'middle' } },
+                    emphasis: { focus: 'descendant' },
                     expandAndCollapse: true,
                     animationDuration: 550,
                     animationDurationUpdate: 750

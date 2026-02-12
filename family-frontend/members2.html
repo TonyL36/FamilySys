@@ -66,12 +66,16 @@
             background: none;
             font-size: 16px;
             color: #666;
-            transition: all 0.3s;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
         }
-
+        .header-tab:hover {
+            color: #1e40af;
+            background: #dbeafe;
+        }
         .header-tab.active {
-            color: #2563eb;
-            border-bottom: 2px solid #2563eb;
+            color: #1d4ed8;
+            border-bottom: 2px solid #1d4ed8;
             margin-bottom: -2px;
         }
 
@@ -175,6 +179,7 @@
         <div class="header-tabs">
             <button class="header-tab active" onclick="location.href='members2.html'">成员管理</button>
             <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab" onclick="location.href='family-tree-final.html'">家族关系树</button>
             <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
         </div>
     <div class="container">

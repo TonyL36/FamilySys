@@ -218,6 +218,9 @@ public class RelationshipController implements HttpHandler {
         JSONObject json = new JSONObject();
         json.put("isDistantRelative", result.isDistantRelative());
         json.put("description", result.getDescription());
+        if (result.getPreciseKinshipTerm() != null && !result.getPreciseKinshipTerm().isEmpty()) {
+            json.put("preciseKinshipTerm", result.getPreciseKinshipTerm());
+        }
         json.put("closestCommonAncestorID", result.getClosestCommonAncestorID());
         json.put("commonAncestorCount", result.getCommonAncestorCount());
         JSONArray nodesArr = new JSONArray();
@@ -237,6 +240,11 @@ public class RelationshipController implements HttpHandler {
             edgesArr.put(o);
         }
         json.put("pathEdges", edgesArr);
+        int pathLength = result.getPathEdges().size();
+        json.put("pathLength", pathLength);
+        // 亲缘系数 φ = (1/2)^(L+R)，L+R 为路径步数，国际通用 Kinship Coefficient
+        double kinshipCoefficient = pathLength > 0 ? Math.pow(0.5, pathLength) : 1.0;
+        json.put("kinshipCoefficient", kinshipCoefficient);
         return json;
     }
 
