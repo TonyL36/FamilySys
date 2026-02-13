@@ -35,7 +35,6 @@
         .result-summary.fail { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
         .kinship-info { margin-top: 10px; padding: 10px; background: #f1f5f9; border-radius: 6px; font-size: 14px; color: #475569; }
         .kinship-info strong { color: #1e293b; }
-        .relation-tip { margin-top: 12px; font-size: 13px; color: #64748b; line-height: 1.5; }
         #graph-container {
             min-height: 280px; padding: 24px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
             overflow: auto;
@@ -45,7 +44,6 @@
         .node text { fill: #fff; font-size: 14px; font-weight: 500; text-anchor: middle; }
         .link line { stroke: #64748b; stroke-width: 2; }
         .link text { fill: #475569; font-size: 13px; font-weight: 500; text-anchor: middle; }
-        .error-message { color: #dc2626; margin-top: 8px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -66,7 +64,6 @@
                 <select id="member2-id"><option value="">请选择...</option></select>
                 <button type="button" id="btn-query">查询关系链</button>
             </div>
-            <p class="relation-tip">说明：关系有方向（成员1 对 成员2）。若链路中某条显示为「妻子」但实际应为「姐姐」，请在「关系管理」中修改：2=妻子，12=姐姐；11=哥哥，13=弟弟，14=妹妹。同爷爷为堂兄弟/堂姐妹。</p>
         </div>
 
         <div class="card" id="result-card" style="display: none;">
@@ -117,6 +114,27 @@
                 if (phi >= 0.0625) return { fill: '#3b82f6', stroke: '#2563eb' };
                 if (phi >= 0.03125) return { fill: '#60a5fa', stroke: '#3b82f6' }; // 远房二从
                 return { fill: '#93c5fd', stroke: '#60a5fa' };                     // 更远
+            }
+
+            function isBloodRelationType(relationType) {
+                if (relationType == null || relationType <= 0) return false;
+                return relationType >= 3 && relationType <= 26;
+            }
+
+            function isBloodRelationDesc(desc) {
+                if (!desc) return false;
+                if (desc.includes('妻') || desc.includes('夫') || desc.includes('媳') || desc.includes('婿') || desc.includes('公公') || desc.includes('婆婆')) return false;
+                return desc.includes('父') || desc.includes('母') || desc.includes('子') || desc.includes('女') || desc.includes('兄') || desc.includes('弟') || desc.includes('姐') || desc.includes('妹') || desc.includes('祖') || desc.includes('孙') || desc.includes('堂') || desc.includes('表');
+            }
+
+            function bloodStepWeight(edge) {
+                if (!edge) return 0;
+                const t = edge.relationType;
+                if (t === 19 || t === 20 || t === 21 || t === 22 || t === 23 || t === 24 || t === 25 || t === 26) return 2;
+                if (t != null && t > 0) return isBloodRelationType(t) ? 1 : 0;
+                const desc = edge.description || '';
+                if (desc.includes('爷爷') || desc.includes('奶奶') || desc.includes('外祖父') || desc.includes('外祖母') || desc.includes('祖辈') || desc.includes('孙辈') || desc.includes('外孙')) return 2;
+                return isBloodRelationDesc(desc) ? 1 : 0;
             }
 
             function orderPath(pathNodes, pathEdges, member1Id, member2Id) {
@@ -256,20 +274,27 @@
 
                 if (result.isDistantRelative) {
                     summary.className = 'result-summary success';
-                    const preciseTerm = result.preciseKinshipTerm;
-                    summary.textContent = (preciseTerm && preciseTerm.length > 0) ? ('称谓：' + preciseTerm + '。' + (result.description || '')) : (result.description || '存在亲属关系。');
+                    summary.textContent = '';
+                    summary.style.display = 'none';
                     const kinDiv = document.getElementById('kinship-info');
                     const pathLen = result.pathLength != null ? result.pathLength : (result.pathEdges && result.pathEdges.length);
                     const phi = result.kinshipCoefficient != null ? result.kinshipCoefficient : (pathLen > 0 ? Math.pow(0.5, pathLen) : 1);
+                    const bloodSteps = Array.isArray(result.pathEdges)
+                        ? result.pathEdges.reduce((sum, e) => sum + bloodStepWeight(e), 0)
+                        : 0;
+                    const bloodExponent = bloodSteps > 0 ? (bloodSteps - 1) : 0;
+                    const bloodPhi = Math.pow(0.5, bloodExponent);
                     kinDiv.style.display = 'block';
                     let kinHtml = '';
-                    if (preciseTerm && preciseTerm.length > 0) kinHtml += '<strong>精确称谓</strong>：' + preciseTerm + '。<br>';
-                    kinHtml += '<strong>社会关系深度（Kinship Coefficient）</strong>：φ = ' + phi.toFixed(4) + '（公式 φ = (1/2)^(L+R)，路径 ' + (pathLen || 0) + ' 步）。颜色越深表示越亲。';
+                    kinHtml += '<strong>血缘紧密度</strong>：φ = ' + bloodPhi.toFixed(4) + '（指数 ' + bloodExponent + '，血缘步数 ' + bloodSteps + '）。<br>';
+                    kinHtml += '<strong>关系链深度</strong>：φ = ' + phi.toFixed(4) + '（路径 ' + (pathLen || 0) + ' 步）。颜色越深表示越亲。';
                     kinDiv.innerHTML = kinHtml;
-                    renderGraph(result.pathNodes || [], result.pathEdges || [], phi, m1, m2);
+                    const colorPhi = bloodPhi > 0 ? bloodPhi : phi;
+                    renderGraph(result.pathNodes || [], result.pathEdges || [], colorPhi, m1, m2);
                 } else {
                     summary.className = 'result-summary fail';
                     summary.textContent = result.description || '无亲属关系。';
+                    summary.style.display = 'block';
                     document.getElementById('kinship-info').style.display = 'none';
                     renderGraph([], [], null, m1, m2);
                 }
@@ -277,6 +302,7 @@
                 console.error(e);
                 summary.className = 'result-summary fail';
                 summary.textContent = '查询失败：' + (e.message || '网络或服务异常');
+                summary.style.display = 'block';
                 renderGraph([], [], null, m1, m2);
             } finally {
                 btn.disabled = false;

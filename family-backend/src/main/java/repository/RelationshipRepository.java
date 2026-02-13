@@ -94,6 +94,31 @@ public class RelationshipRepository {
         return relationships;
     }
 
+    public Relationship getRelationshipByMembers(int member1ID, int member2ID) throws SQLException {
+        String sql = "SELECT * FROM Relationships WHERE member1 = ? AND member2 = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, member1ID);
+            pstmt.setInt(2, member2ID);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Relationship relationship = new Relationship(
+                            rs.getInt("RelationID"),
+                            rs.getInt("member1"),
+                            rs.getInt("member2"),
+                            rs.getInt("relation")
+                    );
+                    Member m1 = memberRepository.findMemberById(relationship.getMember1());
+                    Member m2 = memberRepository.findMemberById(relationship.getMember2());
+                    if (m1 != null) relationship.setMember1Name(m1.getName());
+                    if (m2 != null) relationship.setMember2Name(m2.getName());
+                    return relationship;
+                }
+            }
+        }
+        return null;
+    }
+
     public List<Relationship> getAllRelationships() throws SQLException {
         List<Relationship> relationships = new ArrayList<>();
         String sql = "SELECT * FROM Relationships";
@@ -211,4 +236,3 @@ public class RelationshipRepository {
         }
     }
 }
-

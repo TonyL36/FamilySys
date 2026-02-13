@@ -39,13 +39,17 @@ public class FamilyRelationshipCalculator {
                 Map<Integer, Member> memberMap = new HashMap<>();
                 if (member1 != null) memberMap.put(member1ID, member1);
                 if (member2 != null) memberMap.put(member2ID, member2);
-                String edgeDesc = edgeDescriptionForDirection(directRel, member1ID, member2ID, memberMap);
+                Relationship directDirectional = relationshipRepository.getRelationshipByMembers(member1ID, member2ID);
+                String edgeDesc = directDirectional != null
+                        ? directDirectional.getRelationshipDescription()
+                        : edgeDescriptionForDirection(directRel, member1ID, member2ID, memberMap);
                 String desc = "直接关系：" + edgeDesc;
                 List<PathNode> nodes = Arrays.asList(
                         new PathNode(member1ID, member1.getName()),
                         new PathNode(member2ID, member2.getName())
                 );
-                List<PathEdge> edges = Arrays.asList(new PathEdge(member1ID, member2ID, edgeDesc));
+                int relationType = directDirectional != null ? directDirectional.getRelation() : directRel.getRelation();
+                List<PathEdge> edges = Arrays.asList(new PathEdge(member1ID, member2ID, edgeDesc, relationType));
                 String preciseTerm = edgeDesc; // 直接关系即精确称谓
                 return new DistantRelativeResult(true, desc, -1, 1, nodes, edges, preciseTerm);
             }
@@ -126,13 +130,12 @@ public class FamilyRelationshipCalculator {
             Member m = memberRepository.findMemberById(member1ID);
             return new PathResult(Collections.singletonList(new PathNode(member1ID, m != null ? m.getName() : "")), Collections.emptyList());
         }
-        // (currentId -> {prevId, relationship})
         Map<Integer, int[]> prevNode = new HashMap<>();
         Map<Integer, Relationship> prevRel = new HashMap<>();
-        Queue<Integer> queue = new LinkedList<>();
-        Set<Integer> visited = new HashSet<>();
-        queue.offer(member1ID);
-        visited.add(member1ID);
+        Map<Integer, Integer> dist = new HashMap<>();
+        PriorityQueue<int[]> queue = new PriorityQueue<>(Comparator.comparingInt(a -> a[1]));
+        dist.put(member1ID, 0);
+        queue.offer(new int[]{member1ID, 0});
         prevNode.put(member1ID, new int[]{-1});
         
         // 获取成员信息用于关系判断
@@ -143,8 +146,25 @@ public class FamilyRelationshipCalculator {
         }
         
         while (!queue.isEmpty()) {
-            int cur = queue.poll();
+            int[] curItem = queue.poll();
+            int cur = curItem[0];
+            int curDist = curItem[1];
+            Integer known = dist.get(cur);
+            if (known == null || curDist != known) {
+                continue;
+            }
+            if (cur == member2ID) {
+                break;
+            }
             List<Relationship> list = relationshipRepository.getRelationshipsInvolvingMember(cur);
+            list.sort((a, b) -> {
+                int pa = relationPriority(a.getRelation());
+                int pb = relationPriority(b.getRelation());
+                if (pa != pb) return Integer.compare(pa, pb);
+                int na = a.getMember1() == cur ? a.getMember2() : a.getMember1();
+                int nb = b.getMember1() == cur ? b.getMember2() : b.getMember1();
+                return Integer.compare(na, nb);
+            });
             for (Relationship rel : list) {
                 int next = rel.getMember1() == cur ? rel.getMember2() : rel.getMember1();
                 
@@ -156,20 +176,40 @@ public class FamilyRelationshipCalculator {
                     }
                 }
                 
-                if (next == member2ID) {
+                int edgeWeight = 10 + relationPriority(rel.getRelation());
+                int nextDist = curDist + edgeWeight;
+                Integer best = dist.get(next);
+                if (best == null || nextDist < best) {
+                    dist.put(next, nextDist);
                     prevNode.put(next, new int[]{cur});
                     prevRel.put(next, rel);
-                    return buildPathFromBacktrack(member1ID, member2ID, prevNode, prevRel, memberMap);
-                }
-                if (!visited.contains(next)) {
-                    visited.add(next);
-                    prevNode.put(next, new int[]{cur});
-                    prevRel.put(next, rel);
-                    queue.offer(next);
+                    queue.offer(new int[]{next, nextDist});
                 }
             }
         }
-        return null;
+        if (!dist.containsKey(member2ID)) {
+            return null;
+        }
+        return buildPathFromBacktrack(member1ID, member2ID, prevNode, prevRel, memberMap);
+    }
+
+    private int relationPriority(int relationType) {
+        switch (relationType) {
+            case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10:
+                return 1;
+            case 11: case 12: case 13: case 14:
+                return 2;
+            case 19: case 20: case 21: case 22: case 23: case 24: case 25: case 26:
+                return 3;
+            case 15: case 16: case 17: case 18:
+                return 4;
+            case 1: case 2:
+                return 5;
+            case 27: case 28: case 29: case 30: case 31: case 32:
+                return 6;
+            default:
+                return 9;
+        }
     }
 
     private PathResult buildPathFromBacktrack(int fromID, int toID, Map<Integer, int[]> prevNode, Map<Integer, Relationship> prevRel, Map<Integer, Member> memberMap) throws SQLException {
@@ -203,13 +243,17 @@ public class FamilyRelationshipCalculator {
         // 构建边，确保使用正确的关系方向和称呼
         for (int i = 0; i < idOrder.size() - 1; i++) {
             int a = idOrder.get(i), b = idOrder.get(i + 1);
+            Relationship dirRel = relationshipRepository.getRelationshipByMembers(a, b);
+            if (dirRel != null) {
+                edges.add(new PathEdge(a, b, dirRel.getRelationshipDescription(), dirRel.getRelation()));
+                continue;
+            }
             Relationship r = prevRel.get(b);
             if (r != null) {
-                // 确保关系方向正确：a 是前序节点，b 是后序节点
                 String edgeDesc = getEdgeDescriptionForMember1(r, a, b, memberMap);
-                edges.add(new PathEdge(a, b, edgeDesc));
+                edges.add(new PathEdge(a, b, edgeDesc, r.getRelation()));
             } else {
-                edges.add(new PathEdge(a, b, ""));
+                edges.add(new PathEdge(a, b, "", -1));
             }
         }
         return new PathResult(nodes, edges);
@@ -686,10 +730,17 @@ public class FamilyRelationshipCalculator {
         private final int fromId;
         private final int toId;
         private final String description;
-        public PathEdge(int fromId, int toId, String description) { this.fromId = fromId; this.toId = toId; this.description = description; }
+        private final int relationType;
+        public PathEdge(int fromId, int toId, String description, int relationType) {
+            this.fromId = fromId;
+            this.toId = toId;
+            this.description = description;
+            this.relationType = relationType;
+        }
         public int getFromId() { return fromId; }
         public int getToId() { return toId; }
         public String getDescription() { return description; }
+        public int getRelationType() { return relationType; }
     }
 
 /** 远亲关系结果类 */

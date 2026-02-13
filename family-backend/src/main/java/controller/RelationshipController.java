@@ -39,11 +39,11 @@ public class RelationshipController implements HttpHandler {
                     handlePost(exchange);
                     break;
                 default:
-                    sendResponse(exchange, 405, createErrorResponse("Method Not Allowed"));
+                    sendResponse(exchange, 405, createErrorResponse("Method Not Allowed"), "no-store");
             }
         } catch (Exception e) {
             logger.error("Error handling request: {}", e.getMessage());
-            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"));
+            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"), "no-store");
         }
     }
 
@@ -51,13 +51,13 @@ public class RelationshipController implements HttpHandler {
         try {
             String requestBody = readRequestBody(exchange);
             if (requestBody == null) {
-                sendResponse(exchange, 413, createErrorResponse("Request body too large"));
+                sendResponse(exchange, 413, createErrorResponse("Request body too large"), "no-store");
                 return;
             }
 
             // 验证请求体不为空
             if (requestBody == null || requestBody.trim().isEmpty()) {
-                sendResponse(exchange, 400, createErrorResponse("Request body cannot be empty"));
+                sendResponse(exchange, 400, createErrorResponse("Request body cannot be empty"), "no-store");
                 return;
             }
 
@@ -66,13 +66,13 @@ public class RelationshipController implements HttpHandler {
             try {
                 json = new JSONObject(requestBody);
             } catch (Exception e) {
-                sendResponse(exchange, 400, createErrorResponse("Invalid JSON format"));
+                sendResponse(exchange, 400, createErrorResponse("Invalid JSON format"), "no-store");
                 return;
             }
 
             // 验证必需字段存在
             if (!json.has("member1ID") || !json.has("member2ID") || !json.has("relationType")) {
-                sendResponse(exchange, 400, createErrorResponse("Missing required fields: member1ID, member2ID, and relationType are required"));
+                sendResponse(exchange, 400, createErrorResponse("Missing required fields: member1ID, member2ID, and relationType are required"), "no-store");
                 return;
             }
 
@@ -83,40 +83,40 @@ public class RelationshipController implements HttpHandler {
                 member2ID = json.getInt("member2ID");
                 relationType = json.getInt("relationType");
             } catch (Exception e) {
-                sendResponse(exchange, 400, createErrorResponse("Invalid field type: member1ID, member2ID, and relationType must be integers"));
+                sendResponse(exchange, 400, createErrorResponse("Invalid field type: member1ID, member2ID, and relationType must be integers"), "no-store");
                 return;
             }
 
             // 验证字段值的有效性
             if (member1ID <= 0) {
-                sendResponse(exchange, 400, createErrorResponse("member1ID must be positive"));
+                sendResponse(exchange, 400, createErrorResponse("member1ID must be positive"), "no-store");
                 return;
             }
             if (member2ID <= 0) {
-                sendResponse(exchange, 400, createErrorResponse("member2ID must be positive"));
+                sendResponse(exchange, 400, createErrorResponse("member2ID must be positive"), "no-store");
                 return;
             }
             if (relationType < 1 || relationType > 32) {
-                sendResponse(exchange, 400, createErrorResponse("relationType must be between 1 and 32"));
+                sendResponse(exchange, 400, createErrorResponse("relationType must be between 1 and 32"), "no-store");
                 return;
             }
 
             // 验证成员不能是同一个人
             if (member1ID == member2ID) {
-                sendResponse(exchange, 400, createErrorResponse("member1ID and member2ID cannot be the same"));
+                sendResponse(exchange, 400, createErrorResponse("member1ID and member2ID cannot be the same"), "no-store");
                 return;
             }
 
             // 尝试添加关系
             boolean success = relationshipService.addRelationship(member1ID, member2ID, relationType);
             if (success) {
-                sendResponse(exchange, 201, createSuccessResponse("Relationship added successfully"));
+                sendResponse(exchange, 201, createSuccessResponse("Relationship added successfully"), "no-store");
             } else {
-                sendResponse(exchange, 400, createErrorResponse("Failed to add relationship. Please check if members exist and the relationship is valid."));
+                sendResponse(exchange, 400, createErrorResponse("Failed to add relationship. Please check if members exist and the relationship is valid."), "no-store");
             }
         } catch (Exception e) {
             logger.error("Error in handlePost: {}", e.getMessage());
-            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"));
+            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"), "no-store");
         }
     }
 
@@ -125,63 +125,63 @@ public class RelationshipController implements HttpHandler {
             String query = exchange.getRequestURI().getQuery();
             if (query != null) {
                 if (query.length() > maxQueryLength) {
-                    sendResponse(exchange, 400, createErrorResponse("Query is too long"));
+                    sendResponse(exchange, 400, createErrorResponse("Query is too long"), "no-store");
                     return;
                 }
                 if (query.startsWith("memberID=")) {
                     String memberIDStr = query.substring(9);
                     if (memberIDStr.trim().isEmpty()) {
-                        sendResponse(exchange, 400, createErrorResponse("memberID cannot be empty"));
+                        sendResponse(exchange, 400, createErrorResponse("memberID cannot be empty"), "no-store");
                         return;
                     }
                     try {
                         int memberID = Integer.parseInt(memberIDStr);
                         if (memberID <= 0) {
-                            sendResponse(exchange, 400, createErrorResponse("memberID must be positive"));
+                            sendResponse(exchange, 400, createErrorResponse("memberID must be positive"), "no-store");
                             return;
                         }
                         List<Relationship> relationships = relationshipService.getRelationshipsForMember(memberID);
-                        sendResponse(exchange, 200, relationshipsToJson(relationships).toString());
+                        sendResponse(exchange, 200, relationshipsToJson(relationships).toString(), "public, max-age=60");
                     } catch (NumberFormatException e) {
-                        sendResponse(exchange, 400, createErrorResponse("Invalid memberID format"));
+                        sendResponse(exchange, 400, createErrorResponse("Invalid memberID format"), "no-store");
                     }
                 } else if (query.startsWith("relationID=")) {
                     String relationIDStr = query.substring(11);
                     if (relationIDStr.trim().isEmpty()) {
-                        sendResponse(exchange, 400, createErrorResponse("relationID cannot be empty"));
+                        sendResponse(exchange, 400, createErrorResponse("relationID cannot be empty"), "no-store");
                         return;
                     }
                     try {
                         int relationID = Integer.parseInt(relationIDStr);
                         if (relationID <= 0) {
-                            sendResponse(exchange, 400, createErrorResponse("relationID must be positive"));
+                            sendResponse(exchange, 400, createErrorResponse("relationID must be positive"), "no-store");
                             return;
                         }
                         Relationship relationship = relationshipService.getRelationshipByRelationID(relationID);
                         if (relationship != null) {
-                            sendResponse(exchange, 200, relationshipToJson(relationship).toString());
+                            sendResponse(exchange, 200, relationshipToJson(relationship).toString(), "public, max-age=60");
                         } else {
-                            sendResponse(exchange, 404, createErrorResponse("Relationship not found"));
+                            sendResponse(exchange, 404, createErrorResponse("Relationship not found"), "no-store");
                         }
                     } catch (NumberFormatException e) {
-                        sendResponse(exchange, 400, createErrorResponse("Invalid relationID format"));
+                        sendResponse(exchange, 400, createErrorResponse("Invalid relationID format"), "no-store");
                     }
                 } else if (query.startsWith("relationType=")) {
                     String relationTypeStr = query.substring(13).split("&")[0].trim();
                     if (relationTypeStr.isEmpty()) {
-                        sendResponse(exchange, 400, createErrorResponse("relationType cannot be empty"));
+                        sendResponse(exchange, 400, createErrorResponse("relationType cannot be empty"), "no-store");
                         return;
                     }
                     try {
                         int relationType = Integer.parseInt(relationTypeStr);
                         if (relationType < 1 || relationType > 32) {
-                            sendResponse(exchange, 400, createErrorResponse("relationType must be between 1 and 32"));
+                            sendResponse(exchange, 400, createErrorResponse("relationType must be between 1 and 32"), "no-store");
                             return;
                         }
                         List<Relationship> relationships = relationshipService.getRelationshipsByRelationType(relationType);
-                        sendResponse(exchange, 200, relationshipsToJson(relationships).toString());
+                        sendResponse(exchange, 200, relationshipsToJson(relationships).toString(), "public, max-age=60");
                     } catch (NumberFormatException e) {
-                        sendResponse(exchange, 400, createErrorResponse("Invalid relationType format"));
+                        sendResponse(exchange, 400, createErrorResponse("Invalid relationType format"), "no-store");
                     }
                 } else if (query.startsWith("distantRelative=")) {
                     // 处理远亲关系查询
@@ -193,36 +193,36 @@ public class RelationshipController implements HttpHandler {
                             try {
                                 member1ID = Integer.parseInt(param.substring(10));
                             } catch (NumberFormatException e) {
-                                sendResponse(exchange, 400, createErrorResponse("Invalid member1ID format"));
+                                sendResponse(exchange, 400, createErrorResponse("Invalid member1ID format"), "no-store");
                                 return;
                             }
                         } else if (param.startsWith("member2ID=")) {
                             try {
                                 member2ID = Integer.parseInt(param.substring(10));
                             } catch (NumberFormatException e) {
-                                sendResponse(exchange, 400, createErrorResponse("Invalid member2ID format"));
+                                sendResponse(exchange, 400, createErrorResponse("Invalid member2ID format"), "no-store");
                                 return;
                             }
                         }
                     }
                     
                     if (member1ID <= 0 || member2ID <= 0) {
-                        sendResponse(exchange, 400, createErrorResponse("member1ID and member2ID must be positive integers"));
+                        sendResponse(exchange, 400, createErrorResponse("member1ID and member2ID must be positive integers"), "no-store");
                         return;
                     }
                     
                     FamilyRelationshipCalculator.DistantRelativeResult result = relationshipService.findDistantRelative(member1ID, member2ID);
-                    sendResponse(exchange, 200, distantRelativeResultToJson(result).toString());
+                    sendResponse(exchange, 200, distantRelativeResultToJson(result).toString(), "public, max-age=60");
                 } else {
-                    sendResponse(exchange, 400, createErrorResponse("Invalid query parameter"));
+                    sendResponse(exchange, 400, createErrorResponse("Invalid query parameter"), "no-store");
                 }
             } else {
                 List<Relationship> relationships = relationshipService.getAllRelationships();
-                sendResponse(exchange, 200, relationshipsToJson(relationships).toString());
+                sendResponse(exchange, 200, relationshipsToJson(relationships).toString(), "public, max-age=60");
             }
         } catch (Exception e) {
             logger.error("Error in handleGet: {}", e.getMessage());
-            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"));
+            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"), "no-store");
         }
     }
 
@@ -249,6 +249,7 @@ public class RelationshipController implements HttpHandler {
             o.put("fromId", e.getFromId());
             o.put("toId", e.getToId());
             o.put("description", e.getDescription());
+            o.put("relationType", e.getRelationType());
             edgesArr.put(o);
         }
         json.put("pathEdges", edgesArr);
@@ -260,11 +261,11 @@ public class RelationshipController implements HttpHandler {
         return json;
     }
 
-    private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+    private void sendResponse(HttpExchange exchange, int statusCode, String response, String cacheControl) throws IOException {
         exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
         exchange.getResponseHeaders().add("X-Content-Type-Options", "nosniff");
         exchange.getResponseHeaders().add("X-Frame-Options", "DENY");
-        exchange.getResponseHeaders().add("Cache-Control", "no-store");
+        exchange.getResponseHeaders().add("Cache-Control", cacheControl);
         byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(statusCode, responseBytes.length);
         try (OutputStream os = exchange.getResponseBody()) {

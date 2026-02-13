@@ -191,6 +191,27 @@ public class RelationshipService {
         }
     }
 
+    private void addInLawRelationshipsForChild(Member child, Member parent) throws SQLException {
+        int childID = child.getMemberID();
+        int spouseID = relationshipRepository.getMember2ByMember1AndRelation(childID, child.getGender() == 0 ? 2 : 1);
+        if (spouseID <= 0) {
+            return;
+        }
+        Member spouse = memberRepository.findMemberById(spouseID);
+        if (spouse == null) {
+            return;
+        }
+        int parentID = parent.getMemberID();
+        int parentGender = parent.getGender();
+        if (spouse.getGender() == 0) {
+            relationshipRepository.addRelationship(spouseID, parentID, parentGender == 0 ? 27 : 28);
+            relationshipRepository.addRelationship(parentID, spouseID, 32);
+        } else if (spouse.getGender() == 1) {
+            relationshipRepository.addRelationship(spouseID, parentID, parentGender == 0 ? 29 : 30);
+            relationshipRepository.addRelationship(parentID, spouseID, 31);
+        }
+    }
+
     private void addParentInLawRelationships(int member1, int member2) {
         try {
             if (memberRepository.findMemberById(member1).getGender() == 1) {
@@ -253,14 +274,24 @@ public class RelationshipService {
                 if (motherID != -1) {
                     relationshipRepository.addRelationship(childID, motherID, 4);
                     relationshipRepository.addRelationship(motherID, childID, relationType);
+                    Member mother = memberRepository.findMemberById(motherID);
+                    if (mother != null) {
+                        addInLawRelationshipsForChild(child, mother);
+                    }
                 }
+                addInLawRelationshipsForChild(child, parent);
             } else {
                 relationshipRepository.addRelationship(childID, parentID, 4);
                 int fatherID = relationshipRepository.getMember2ByMember1AndRelation(parentID, 1);
                 if (fatherID != -1) {
                     relationshipRepository.addRelationship(childID, fatherID, 3);
                     relationshipRepository.addRelationship(fatherID, childID, relationType);
+                    Member father = memberRepository.findMemberById(fatherID);
+                    if (father != null) {
+                        addInLawRelationshipsForChild(child, father);
+                    }
                 }
+                addInLawRelationshipsForChild(child, parent);
             }
         } catch (SQLException e) {
             logger.error("Error adding parent relationships: {}", e.getMessage());
