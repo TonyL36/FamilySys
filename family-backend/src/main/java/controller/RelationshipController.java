@@ -18,9 +18,13 @@ import java.util.List;
 public class RelationshipController implements HttpHandler {
     private static final Logger logger = LogManager.getLogger(RelationshipController.class);
     private RelationshipService relationshipService;
+    private final int maxBodyBytes;
+    private final int maxQueryLength;
 
-    public RelationshipController(RelationshipService relationshipService) {
+    public RelationshipController(RelationshipService relationshipService, int maxBodyBytes, int maxQueryLength) {
         this.relationshipService = relationshipService;
+        this.maxBodyBytes = maxBodyBytes;
+        this.maxQueryLength = maxQueryLength;
     }
 
     @Override
@@ -45,8 +49,11 @@ public class RelationshipController implements HttpHandler {
 
     private void handlePost(HttpExchange exchange) throws IOException {
         try {
-            // 读取请求体
-            String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            String requestBody = readRequestBody(exchange);
+            if (requestBody == null) {
+                sendResponse(exchange, 413, createErrorResponse("Request body too large"));
+                return;
+            }
 
             // 验证请求体不为空
             if (requestBody == null || requestBody.trim().isEmpty()) {
@@ -117,6 +124,10 @@ public class RelationshipController implements HttpHandler {
         try {
             String query = exchange.getRequestURI().getQuery();
             if (query != null) {
+                if (query.length() > maxQueryLength) {
+                    sendResponse(exchange, 400, createErrorResponse("Query is too long"));
+                    return;
+                }
                 if (query.startsWith("memberID=")) {
                     String memberIDStr = query.substring(9);
                     if (memberIDStr.trim().isEmpty()) {
@@ -251,6 +262,9 @@ public class RelationshipController implements HttpHandler {
 
     private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
         exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+        exchange.getResponseHeaders().add("X-Content-Type-Options", "nosniff");
+        exchange.getResponseHeaders().add("X-Frame-Options", "DENY");
+        exchange.getResponseHeaders().add("Cache-Control", "no-store");
         byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(statusCode, responseBytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
@@ -288,5 +302,13 @@ public class RelationshipController implements HttpHandler {
         JSONObject json = new JSONObject();
         json.put("message", message);
         return json.toString();
+    }
+
+    private String readRequestBody(HttpExchange exchange) throws IOException {
+        byte[] data = exchange.getRequestBody().readNBytes(maxBodyBytes + 1);
+        if (data.length > maxBodyBytes) {
+            return null;
+        }
+        return new String(data, StandardCharsets.UTF_8);
     }
 }

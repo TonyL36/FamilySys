@@ -11,6 +11,14 @@
 # 忽略本地数据库文件（防止个人数据泄露）
 **/family-backend/*.db
 **/family-backend/*.sqlite
+*.db
+*.sqlite
+*.sql
+family.backup*.db
+family_export*.sql
+application.log
+.trae/
+family-backend/lib/
 
 # 排除 Maven Wrapper (通常建议保留以便他人直接运行)
 !**/family-backend/.mvn/wrapper/maven-wrapper.jar

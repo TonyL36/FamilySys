@@ -210,6 +210,13 @@
 
     <script>
         const API_BASE_URL = 'http://127.0.0.1:8000';
+        const API_KEY = 'YLqWKfriSzxY4p2MTYjXEa63km86v9O6W4LoEOEM8vuXR7leJ9LZSr0g0Dafq_Dw';
+        const API_HEADERS = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-API-Key': API_KEY
+        };
 
         // 切换标签页
         document.querySelectorAll('.tab').forEach(tab => {
@@ -225,7 +232,9 @@
         // 获取所有成员
         async function fetchMembers() {
             try {
-                const response = await fetch(`${API_BASE_URL}/member`);
+                const response = await fetch(`${API_BASE_URL}/member`, {
+                    headers: API_HEADERS
+                });
                 if (!response.ok) throw new Error('Failed to fetch members');
                 const members = await response.json();
                 renderMembersTable(members);
@@ -269,7 +278,8 @@
             if (btn.classList.contains('confirm')) {
                 try {
                     const response = await fetch(`${API_BASE_URL}/member/${id}`, {
-                        method: 'DELETE'
+                        method: 'DELETE',
+                        headers: API_HEADERS
                     });
                     if (!response.ok) throw new Error('Failed to delete member');
                     fetchMembers();
@@ -299,9 +309,7 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/member`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: API_HEADERS,
                     body: JSON.stringify({
                         name: form.name.value,
                         generation: parseInt(form.generation.value),
@@ -331,7 +339,9 @@
 
             try {
                 const name = document.getElementById('search-input').value;
-                const response = await fetch(`${API_BASE_URL}/member?name=${encodeURIComponent(name)}`);
+                const response = await fetch(`${API_BASE_URL}/member?name=${encodeURIComponent(name)}`, {
+                    headers: API_HEADERS
+                });
                 
                 if (response.status === 404) {
                     document.getElementById('search-results').innerHTML = '<p>未找到相关成员</p>';

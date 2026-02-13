@@ -37,12 +37,16 @@
             background: none;
             font-size: 16px;
             color: #666;
-            transition: all 0.3s;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
         }
-
+        .header-tab:hover {
+            color: #1e40af;
+            background: #dbeafe;
+        }
         .header-tab.active {
-            color: #2563eb;
-            border-bottom: 2px solid #2563eb;
+            color: #1d4ed8;
+            border-bottom: 2px solid #1d4ed8;
             margin-bottom: -2px;
         }
 
@@ -188,8 +192,10 @@
 <body>
     <div class="container">
         <div class="header-tabs">
-            <button class="header-tab" onclick="location.href='members.html'">成员管理</button>
-            <button class="header-tab active" onclick="location.href='relationships.html'">关系管理</button>
+            <button class="header-tab" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab active" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab" onclick="location.href='family-tree-final.html'">家族关系树</button>
+            <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
         </div>
 
         <div class="tabs">
@@ -246,52 +252,64 @@
                     <select id="search-relation-type">
                         <option value="">选择关系类型...</option>
                         <option value="1">丈夫</option>
-                            <option value="2">妻子</option>
-                            <option value="3">父亲</option>
-                            <option value="4">母亲</option>
-                            <option value="5">长子</option>
-                            <option value="6">次子</option>
-                            <option value="7">小子</option>
-                            <option value="8">长女</option>
-                            <option value="9">次女</option>
-                            <option value="10">小女</option>
-                            <option value="11">哥哥</option>
-                            <option value="12">姐姐</option>
-                            <option value="13">弟弟</option>
-                            <option value="14">妹妹</option>
-                            <option value="15">表哥</option>
-                            <option value="16">表姐</option>
-                            <option value="17">表弟</option>
-                            <option value="18">表妹</option>
-                            <option value="19">爷爷</option>
-                            <option value="20">奶奶</option>
-                            <option value="21">外祖母</option>
-                            <option value="22">外祖父</option>
-                            <option value="23">孙子</option>
-                            <option value="24">孙女</option>
-                            <option value="25">外孙</option>
-                            <option value="26">外孙女</option>
-                            <option value="27">岳父</option>
-                            <option value="28">岳母</option>
-                            <option value="29">公公</option>
-                            <option value="30">婆婆</option>
-                            <option value="31">儿媳</option>
-                            <option value="32">女婿</option>
+                        <option value="2">妻子</option>
+                        <option value="3">父亲</option>
+                        <option value="4">母亲</option>
+                        <option value="5">长子</option>
+                        <option value="6">次子</option>
+                        <option value="7">小子</option>
+                        <option value="8">长女</option>
+                        <option value="9">次女</option>
+                        <option value="10">小女</option>
+                        <option value="11">哥哥</option>
+                        <option value="12">姐姐</option>
+                        <option value="13">弟弟</option>
+                        <option value="14">妹妹</option>
+                        <option value="15">表哥</option>
+                        <option value="16">表姐</option>
+                        <option value="17">表弟</option>
+                        <option value="18">表妹</option>
+                        <option value="19">爷爷</option>
+                        <option value="20">奶奶</option>
+                        <option value="21">外祖母</option>
+                        <option value="22">外祖父</option>
+                        <option value="23">孙子</option>
+                        <option value="24">孙女</option>
+                        <option value="25">外孙</option>
+                        <option value="26">外孙女</option>
+                        <option value="27">岳父</option>
+                        <option value="28">岳母</option>
+                        <option value="29">公公</option>
+                        <option value="30">婆婆</option>
+                        <option value="31">儿媳</option>
+                        <option value="32">女婿</option>
                     </select>
                     <button onclick="searchByRelationType()">查询</button>
                 </div>
             </div>
 
             <div class="search-group">
-                <h3>根据人物ID查询</h3>
-                <form class="search-form" id="search-form-specific">
-                    <div class="form-group">
-                        <label for="member1">查询对象</label>
-                        <select id="member1" required></select>
-                        <button type="submit">查询</button>
-                    </div>
-                    
-                </form>
+                <h3>根据人物查询</h3>
+                <div class="relationship-search">
+                    <select id="search-member-id">
+                        <option value="">选择成员...</option>
+                    </select>
+                    <button onclick="searchByMemberId()">查询</button>
+                </div>
+            </div>
+
+            <div class="search-group">
+                <h3>远亲关系查询</h3>
+                <div class="relationship-search">
+                    <select id="distant-member1-id">
+                        <option value="">选择成员1...</option>
+                    </select>
+                    <select id="distant-member2-id">
+                        <option value="">选择成员2...</option>
+                    </select>
+                    <button onclick="searchDistantRelationship()">查询远亲关系</button>
+                </div>
+                <div id="distant-result" class="result-container" style="margin-top: 15px; padding: 10px; border-radius: 4px; display: none;"></div>
             </div>
 
             <div id="search-results"></div>
@@ -313,7 +331,7 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const API_BASE_URL = 'http://47.109.193.180:8000';
         const API_KEY = 'YLqWKfriSzxY4p2MTYjXEa63km86v9O6W4LoEOEM8vuXR7leJ9LZSr0g0Dafq_Dw';
 
         // 通用的 fetch 配置
@@ -359,6 +377,9 @@
 
                 const member1Select = document.getElementById('member1');
                 const member2Select = document.getElementById('member2');
+                const searchMemberSelect = document.getElementById('search-member-id');
+                const distantMember1Select = document.getElementById('distant-member1-id');
+                const distantMember2Select = document.getElementById('distant-member2-id');
 
                 const options = members.map(member =>
                     `<option value="${member.id}">${member.name} (ID: ${member.id})</option>`
@@ -366,6 +387,9 @@
 
                 member1Select.innerHTML = options;
                 member2Select.innerHTML = options;
+                searchMemberSelect.innerHTML = '<option value="">选择成员...</option>' + options;
+                distantMember1Select.innerHTML = '<option value="">选择成员1...</option>' + options;
+                distantMember2Select.innerHTML = '<option value="">选择成员2...</option>' + options;
             } catch (error) {
                 console.error('Error:', error);
                 showError('获取成员列表失败');
@@ -482,31 +506,88 @@
             }
         }
 
-        //根据memberID查询
-        document.getElementById('search-form-specific').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const relationId = document.getElementById('search-input-specific').value;
+        // 根据成员ID查询
+        async function searchByMemberId() {
+            const memberId = document.getElementById('search-member-id').value;
+            if (!memberId) {
+                showError('请选择成员');
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE_URL}/relationship?memberID=${memberId}`, {
                     ...fetchConfig,
                     method: 'GET'
                 });
-                if (!response.ok) throw new Error('Failed to search relationship');
+                if (!response.ok) throw new Error('Failed to search relationships');
 
-                const relationship = await response.json();
-                const resultDiv = document.getElementById('search-results');
-                resultDiv.innerHTML = `
-                    <div class="search-group">
-                        <h3>查询结果</h3>
-                        <p>${relationship.member1Name} 的${relationship.description}  是 ${relationship.member2Name}</p>
-                    </div>
-                `;
+                const relationships = await response.json();
+                const table = createResultTable();
+                document.getElementById('search-results').innerHTML = '';
+                document.getElementById('search-results').appendChild(table);
+                renderRelationshipsTable(relationships, 'search-results-table');
             } catch (error) {
                 console.error('Error:', error);
                 showError('查询关系失败');
             }
-        });
+        }
+
+        // 远亲关系查询
+        async function searchDistantRelationship() {
+            const member1ID = document.getElementById('distant-member1-id').value;
+            const member2ID = document.getElementById('distant-member2-id').value;
+            
+            if (!member1ID || !member2ID) {
+                showError('请选择两个成员');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('distant-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>正在查询远亲关系...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/relationship?distantRelative=&member1ID=${member1ID}&member2ID=${member2ID}`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to search distant relationship');
+                }
+                
+                const result = await response.json();
+                
+                let html = '';
+                if (result.isDistantRelative) {
+                    const ancestorDesc = (result.closestCommonAncestorID != null && result.closestCommonAncestorID >= 1)
+                        ? ('成员 ID: ' + result.closestCommonAncestorID) : '无';
+                    const countDesc = (result.commonAncestorCount != null && result.commonAncestorCount >= 0)
+                        ? result.commonAncestorCount : '无';
+                    html = `
+                        <div style="background-color: #dbeafe; padding: 10px; border-radius: 4px;">
+                            <h4 style="color: #1d4ed8; margin: 0 0 10px 0;">✅ 远亲关系查询结果</h4>
+                            <p><strong>关系描述：</strong>${result.description}</p>
+                            <p><strong>最近共同祖先：</strong>${ancestorDesc}</p>
+                            <p><strong>共同祖先数量：</strong>${countDesc}</p>
+                        </div>
+                    `;
+                } else {
+                    html = `
+                        <div style="background-color: #fee2e2; padding: 10px; border-radius: 4px;">
+                            <h4 style="color: #dc2626; margin: 0 0 10px 0;">❌ 无远亲关系</h4>
+                            <p>${result.description}</p>
+                        </div>
+                    `;
+                }
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `<div style="background-color: #fee2e2; padding: 10px; border-radius: 4px;"><h4 style="color: #dc2626; margin: 0 0 10px 0;">❌ 查询失败</h4><p>${error.message}</p></div>`;
+            }
+        }
 
         // 创建结果表格
         function createResultTable() {

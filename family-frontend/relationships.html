@@ -172,13 +172,15 @@
 
     <script>
         const API_BASE_URL = 'http://127.0.0.1:8000';
+        const API_KEY = 'YLqWKfriSzxY4p2MTYjXEa63km86v9O6W4LoEOEM8vuXR7leJ9LZSr0g0Dafq_Dw';
 
         // 通用的 fetch 配置
         const fetchConfig = {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-API-Key': API_KEY
             },
             credentials: 'include',
             mode: 'cors'

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>成员管理系统</title>
     <style>
-        /* 保持原有样式不变 */
         * {
             margin: 0;
             padding: 0;
@@ -52,31 +51,6 @@
 
         .tab-content.active {
             display: block;
-        }
-        .header-tabs {
-            display: flex;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #eee;
-        }
-
-        .header-tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 16px;
-            color: #666;
-            border-radius: 6px;
-            transition: color 0.2s, background 0.2s;
-        }
-        .header-tab:hover {
-            color: #1e40af;
-            background: #dbeafe;
-        }
-        .header-tab.active {
-            color: #1d4ed8;
-            border-bottom: 2px solid #1d4ed8;
-            margin-bottom: -2px;
         }
 
         .form-group {
@@ -172,16 +146,14 @@
             margin-top: 5px;
             font-size: 14px;
         }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header-tabs">
-            <button class="header-tab active" onclick="location.href='members2.html'">成员管理</button>
-            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
-            <button class="header-tab" onclick="location.href='family-tree-final.html'">家族关系树</button>
-            <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
-        </div>
     <div class="container">
         <div class="tabs">
             <button class="tab active" data-tab="list">成员列表</button>
@@ -237,19 +209,13 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const API_BASE_URL = 'http://47.109.193.180:8000';
         const API_KEY = 'YLqWKfriSzxY4p2MTYjXEa63km86v9O6W4LoEOEM8vuXR7leJ9LZSr0g0Dafq_Dw';
-
-        // 通用的 fetch 配置
-        const fetchConfig = {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-API-Key': API_KEY
-            },
-            // credentials: 'include',
-            mode:  'cors'
+        const API_HEADERS = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-API-Key': API_KEY
         };
 
         // 切换标签页
@@ -266,15 +232,11 @@
         // 获取所有成员
         async function fetchMembers() {
             try {
-               
                 const response = await fetch(`${API_BASE_URL}/member`, {
-                    ...fetchConfig,
-                    method: 'GET'
+                    headers: API_HEADERS
                 });
-                // console.log("Response status:", response.status);
                 if (!response.ok) throw new Error('Failed to fetch members');
                 const members = await response.json();
-                // console.log(members);
                 renderMembersTable(members);
             } catch (error) {
                 console.error('Error:', error);
@@ -316,8 +278,8 @@
             if (btn.classList.contains('confirm')) {
                 try {
                     const response = await fetch(`${API_BASE_URL}/member/${id}`, {
-                        ...fetchConfig,
-                        method: 'DELETE'
+                        method: 'DELETE',
+                        headers: API_HEADERS
                     });
                     if (!response.ok) throw new Error('Failed to delete member');
                     fetchMembers();
@@ -346,8 +308,8 @@
 
             try {
                 const response = await fetch(`${API_BASE_URL}/member`, {
-                    ...fetchConfig,
                     method: 'POST',
+                    headers: API_HEADERS,
                     body: JSON.stringify({
                         name: form.name.value,
                         generation: parseInt(form.generation.value),
@@ -378,8 +340,7 @@
             try {
                 const name = document.getElementById('search-input').value;
                 const response = await fetch(`${API_BASE_URL}/member?name=${encodeURIComponent(name)}`, {
-                    ...fetchConfig,
-                    method: 'GET'
+                    headers: API_HEADERS
                 });
                 
                 if (response.status === 404) {
@@ -406,7 +367,7 @@
                 `;
                 document.getElementById('search-results').innerHTML = '';
                 document.getElementById('search-results').appendChild(table);
-                renderMembersTable(Array.isArray(members) ? members : [members], 'search-results-table');
+                renderMembersTable(members, 'search-results-table');
             } catch (error) {
                 console.error('Error:', error);
                 showError('搜索成员失败');
