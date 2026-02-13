@@ -211,12 +211,12 @@ public class RelationshipService {
             int father2 = relationshipRepository.getMember2ByMember1AndRelation(member2, 3);
             if (father2 > 0) {
                 relationshipRepository.addRelationship(member1, father2, 27);
-                relationshipRepository.addRelationship(father2, member2, 32);
+                relationshipRepository.addRelationship(father2, member1, 32);
             }
             int mother2 = relationshipRepository.getMember2ByMember1AndRelation(member2, 4);
             if (mother2 > 0) {
                 relationshipRepository.addRelationship(member1, mother2, 28);
-                relationshipRepository.addRelationship(mother2, member2, 32);
+                relationshipRepository.addRelationship(mother2, member1, 32);
             }
         } catch (SQLException e) {
             logger.error("Error adding parent-in-law relationships: {}", e.getMessage());
