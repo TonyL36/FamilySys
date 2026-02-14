@@ -20,6 +20,7 @@ application.log
 .trae/
 family-backend/lib/
 exports/
+conversation_history.txt
 
 # 排除 Maven Wrapper (通常建议保留以便他人直接运行)
 !**/family-backend/.mvn/wrapper/maven-wrapper.jar
