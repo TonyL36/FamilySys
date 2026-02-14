@@ -16,6 +16,13 @@ public class DatabaseConnection {
     private static final String DB_URL = "jdbc:sqlite:family.db";
 
     private static String getCorrectDatabaseFile() {
+        // 1. 优先检查当前工作目录下的 family.db (用于服务器持久化)
+        File cwdDb = new File("family.db");
+        if (cwdDb.exists()) {
+            return "jdbc:sqlite:" + cwdDb.getAbsolutePath();
+        }
+
+        // 2. 开发环境路径检查
         File resourceDb = new File("src/main/resources/family.db");
         if (resourceDb.exists()) {
             return "jdbc:sqlite:" + resourceDb.getAbsolutePath();
@@ -24,6 +31,8 @@ public class DatabaseConnection {
         if (backendResourceDb.exists()) {
             return "jdbc:sqlite:" + backendResourceDb.getAbsolutePath();
         }
+
+        // 3. JAR包资源回退 (提取到当前目录以确保持久化)
         URL resource = DatabaseConnection.class.getClassLoader().getResource("family.db");
         if (resource != null) {
             if ("file".equalsIgnoreCase(resource.getProtocol())) {
@@ -33,10 +42,12 @@ public class DatabaseConnection {
                 }
             } else {
                 try (InputStream in = resource.openStream()) {
-                    Path temp = Files.createTempFile("family", ".db");
-                    Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
-                    temp.toFile().deleteOnExit();
-                    return "jdbc:sqlite:" + temp.toAbsolutePath();
+                    // 关键修改：不再使用临时文件，而是提取到工作目录的 family.db
+                    Path target = new File("family.db").toPath();
+                    if (!Files.exists(target)) {
+                        Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    return "jdbc:sqlite:" + target.toAbsolutePath();
                 } catch (Exception ignored) {
                 }
             }
@@ -46,6 +57,7 @@ public class DatabaseConnection {
 
 public static Connection getConnection() throws SQLException {
         String url = getCorrectDatabaseFile();
+        System.out.println("Using database: " + url); // Log the DB path
         Connection conn = DriverManager.getConnection(url);
         // 设置UTF-8编码
         conn.createStatement().execute("PRAGMA encoding = 'UTF-8'");
