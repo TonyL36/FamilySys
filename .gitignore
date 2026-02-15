@@ -7,6 +7,7 @@
 
 # 忽略本地运行产生的日志文件
 **/family-backend/*.log
+*.txt
 
 # 忽略本地数据库文件（防止个人数据泄露）
 **/family-backend/*.db

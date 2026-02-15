@@ -3,7 +3,7 @@ $USER = "root"
 $REMOTE_BACKEND_DIR = "/opt/familysys"
 $REMOTE_FRONTEND_DIR = "/var/www/familysys-frontend/family-frontend-remote/family"
 $LOCAL_JAR = "family-backend\target\family-backend-1.0-SNAPSHOT.jar"
-s$LOCAL_DB = "family-backend\src\main\resources\family.db"
+$LOCAL_DB = "family-backend\src\main\resources\family.db"
 $LOCAL_FRONTEND_REMOTE = "family-frontend-remote\*"
 
 Write-Host "Starting deployment to $SERVER_IP..."

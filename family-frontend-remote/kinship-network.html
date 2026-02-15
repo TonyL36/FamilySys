@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>近亲网状视图</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #0f172a;
+            background: radial-gradient(circle at top, #e0f2fe 0%, #f8fafc 55%, #f1f5f9 100%);
+        }
+        .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 35%, #38bdf8 100%);
+            border-radius: 14px;
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+        }
+        .page-title { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+        .page-subtitle { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .page-badge {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 999px;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.6);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+            padding: 6px 8px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(6px);
+        }
+        .header-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #475569;
+            border-radius: 10px;
+            transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+        .header-tab:hover {
+            color: #1e40af;
+            background: rgba(219, 234, 254, 0.8);
+            transform: translateY(-1px);
+        }
+        .header-tab.active {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.12);
+            font-weight: 600;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            backdrop-filter: blur(6px);
+        }
+        .form-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-group { min-width: 220px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: #334155; }
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 15px;
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        select:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 18px rgba(37, 99, 235, 0.28);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        #graph-container {
+            width: 100%;
+            max-width: 1150px;
+            height: 760px;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+        }
+        .graph-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 16px;
+        }
+        .error-message { color: #dc2626; margin-top: 10px; font-size: 14px; }
+        .status-message {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #475569;
+        }
+        .status-message.success { color: #16a34a; }
+        .status-message.error { color: #dc2626; }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+            font-size: 12px;
+            color: #475569;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .legend-line {
+            width: 18px;
+            height: 2px;
+            border-radius: 2px;
+            background: #94a3b8;
+        }
+        .hint {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <div class="page-title">近亲网状视图</div>
+                <div class="page-subtitle">以中心成员为核心，展示指定步数与代数差范围内的亲属网络</div>
+            </div>
+            <div class="page-badge">KINSHIP NETWORK</div>
+        </div>
+        <div class="header-tabs">
+            <button class="header-tab" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab" onclick="location.href='family-tree-final.html'">家族关系树</button>
+            <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
+            <button class="header-tab active">近亲网状视图</button>
+        </div>
+        <div class="controls">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="center-member">中心成员</label>
+                    <select id="center-member"></select>
+                </div>
+                <div class="form-group">
+                    <label for="generations">步数范围</label>
+                    <select id="generations">
+                        <option value="1">1代</option>
+                        <option value="2" selected>2代</option>
+                        <option value="3">3代</option>
+                        <option value="4">4代</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button id="btn-generate">生成网状视图</button>
+                </div>
+            </div>
+            <div id="error-message" class="error-message" style="display:none;"></div>
+            <div id="status-message" class="status-message"></div>
+            <div class="hint">说明：步数为血缘关系跳数；每一步仅扩散到代差≤1的血缘关系；完成后只补充夫妻关系，不再新增节点。</div>
+            <div class="legend">
+                <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span>中心成员</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#38bdf8;"></span>代差 ≤1</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#a78bfa;"></span>代差 ≤2</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#f97316;"></span>代差 >2</div>
+                <div class="legend-item"><span class="legend-line" style="background:#94a3b8;"></span>血缘</div>
+                <div class="legend-item"><span class="legend-line" style="background:#ec4899;"></span>婚姻</div>
+            </div>
+        </div>
+        <div class="graph-wrapper">
+            <div id="graph-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://47.109.193.180:8000';
+        const API_KEY = 'YLqWKfriSzxY4p2MTYjXEa63km86v9O6W4LoEOEM8vuXR7leJ9LZSr0g0Dafq_Dw';
+        const fetchConfig = {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-API-Key': API_KEY
+            },
+            mode: 'cors'
+        };
+        let chart = null;
+
+        function initChart() {
+            if (chart) {
+                chart.dispose();
+            }
+            chart = echarts.init(document.getElementById('graph-container'));
+            chart.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    formatter: params => {
+                        if (params.data && params.data.edgeLabel) {
+                            return params.data.edgeLabel;
+                        }
+                        return params.data && params.data.name ? params.data.name : '';
+                    },
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    borderColor: 'rgba(148, 163, 184, 0.5)',
+                    textStyle: { color: '#f8fafc', fontSize: 12 }
+                },
+                series: [{
+                    type: 'graph',
+                    layout: 'force',
+                    data: [],
+                    links: [],
+                    roam: true,
+                    label: { show: true, position: 'right', color: '#0f172a', fontSize: 12, backgroundColor: 'rgba(248,250,252,0.9)', padding: [2, 6], borderRadius: 6 },
+                    edgeLabel: { show: true, fontSize: 11, color: '#475569', formatter: params => params.data ? params.data.edgeLabel : '' },
+                    center: ['50%', '50%'],
+                    force: { repulsion: 420, edgeLength: [160, 240], friction: 0.2 },
+                    lineStyle: { color: '#94a3b8', width: 2, curveness: 0.18 },
+                    emphasis: {
+                        focus: 'adjacency',
+                        lineStyle: { width: 3, color: '#1d4ed8' }
+                    }
+                }]
+            });
+        }
+
+        function showError(message) {
+            const el = document.getElementById('error-message');
+            el.textContent = message;
+            el.style.display = 'block';
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 3000);
+        }
+
+        function setStatus(message, type) {
+            const el = document.getElementById('status-message');
+            el.textContent = message || '';
+            el.className = `status-message ${type || ''}`;
+        }
+
+        async function loadMembers() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/member`, { ...fetchConfig, method: 'GET' });
+                if (!response.ok) throw new Error('Failed to fetch members');
+                const members = await response.json();
+                members.sort((a, b) => a.id - b.id);
+                const select = document.getElementById('center-member');
+                select.innerHTML = members
+                    .map(member => `<option value="${member.id}">${member.name} (ID: ${member.id})</option>`)
+                    .join('');
+                setStatus(`已加载 ${members.length} 位成员`, 'success');
+            } catch (error) {
+                showError('获取成员列表失败');
+                setStatus('成员加载失败', 'error');
+            }
+        }
+
+        function renderNetwork(data) {
+            const centerId = data.centerId;
+            const centerGeneration = data.centerGeneration;
+            const diffColors = ['#2563eb', '#38bdf8', '#a78bfa', '#f97316', '#facc15'];
+            const nodes = data.nodes.map(node => {
+                const steps = node.level;
+                const diff = Math.abs(node.generation - centerGeneration);
+                const size = node.id === centerId ? 60 : Math.max(28, 52 - steps * 8);
+                const color = node.id === centerId ? '#2563eb' : (diffColors[diff] || '#94a3b8');
+                return {
+                    id: String(node.id),
+                    name: `${node.name} (ID: ${node.id})`,
+                    symbolSize: size,
+                    value: node.id,
+                    itemStyle: {
+                        color,
+                        borderColor: '#e2e8f0',
+                        borderWidth: 2,
+                        shadowColor: 'rgba(15,23,42,0.15)',
+                        shadowBlur: 8
+                    },
+                    label: { fontWeight: node.id === centerId ? 700 : 500 }
+                };
+            });
+
+            const links = data.edges.map(edge => {
+                const isMarriage = edge.edgeType === 'marriage';
+                return {
+                    source: String(edge.fromId),
+                    target: String(edge.toId),
+                    edgeLabel: edge.description,
+                    lineStyle: {
+                        color: isMarriage ? '#ec4899' : '#94a3b8',
+                        type: isMarriage ? 'dashed' : 'solid',
+                        width: isMarriage ? 2.5 : 2
+                    }
+                };
+            });
+
+            chart.setOption({
+                series: [{
+                    data: nodes,
+                    links: links
+                }]
+            });
+            const hiddenCount = data.hiddenRelationsCount || 0;
+            if (hiddenCount > 0) {
+                setStatus(`已加载 ${data.nodes.length} 个节点 / ${data.edges.length} 条关系，未展示关系 ${hiddenCount} 条`, 'error');
+            } else {
+                setStatus(`已加载 ${data.nodes.length} 个节点 / ${data.edges.length} 条关系，已完整展示`, 'success');
+            }
+        }
+
+        async function generateNetwork() {
+            const memberId = parseInt(document.getElementById('center-member').value, 10);
+            const generations = parseInt(document.getElementById('generations').value, 10);
+            if (!memberId) {
+                showError('请选择中心成员');
+                return;
+            }
+            setStatus('正在生成网状视图...', '');
+            try {
+                const response = await fetch(`${API_BASE_URL}/kinship-network?memberID=${memberId}&generations=${generations}`, { ...fetchConfig, method: 'GET' });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    showError(err.error || '获取网状视图失败');
+                    setStatus('网状视图加载失败', 'error');
+                    return;
+                }
+                const data = await response.json();
+                renderNetwork(data);
+            } catch (error) {
+                showError('获取网状视图失败');
+                setStatus('网状视图加载失败', 'error');
+            }
+        }
+
+        document.getElementById('btn-generate').addEventListener('click', generateNetwork);
+
+        window.onload = async function() {
+            initChart();
+            await loadMembers();
+        };
+    </script>
+</body>
+</html>

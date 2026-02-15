@@ -8,9 +8,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class RelationshipService {
     private static final Logger logger = LogManager.getLogger(RelationshipService.class);
@@ -322,5 +328,325 @@ public class RelationshipService {
     public FamilyRelationshipCalculator.DistantRelativeResult findDistantRelative(int member1ID, int member2ID) {
         return familyRelationshipCalculator.findDistantRelative(member1ID, member2ID);
     }
-}
 
+    public KinshipNetworkResult getKinshipNetwork(int centerId, int generations) {
+        try {
+            Member center = memberRepository.findMemberById(centerId);
+            if (center == null) {
+                return null;
+            }
+            List<Relationship> relationships = relationshipRepository.getAllRelationships();
+            Set<Integer> memberIds = new HashSet<>();
+            memberIds.add(centerId);
+            for (Relationship rel : relationships) {
+                memberIds.add(rel.getMember1());
+                memberIds.add(rel.getMember2());
+            }
+            Map<Integer, Member> memberMap = new HashMap<>();
+            for (Integer id : memberIds) {
+                Member member = memberRepository.findMemberById(id);
+                if (member != null) {
+                    memberMap.put(id, member);
+                }
+            }
+
+            Map<Integer, List<Relationship>> adjacency = new HashMap<>();
+            for (Relationship rel : relationships) {
+                if (isBloodRelation(rel.getRelation())) {
+                    adjacency.computeIfAbsent(rel.getMember1(), k -> new ArrayList<>()).add(rel);
+                    adjacency.computeIfAbsent(rel.getMember2(), k -> new ArrayList<>()).add(rel);
+                }
+            }
+
+            Map<Integer, Integer> levelMap = new HashMap<>();
+            Set<Integer> bloodSelected = new HashSet<>();
+            Set<Integer> spouseSelected = new HashSet<>();
+            Set<Integer> frontier = new HashSet<>();
+            levelMap.put(centerId, 0);
+            bloodSelected.add(centerId);
+            frontier.add(centerId);
+
+            for (int step = 1; step <= generations; step++) {
+                Set<Integer> nextFrontier = new HashSet<>();
+                for (Integer current : frontier) {
+                    List<Relationship> neighbors = adjacency.get(current);
+                    if (neighbors == null) {
+                        continue;
+                    }
+                    Member currentMember = memberMap.get(current);
+                    if (currentMember == null) {
+                        continue;
+                    }
+                    for (Relationship rel : neighbors) {
+                        int next = rel.getMember1() == current ? rel.getMember2() : rel.getMember1();
+                        if (bloodSelected.contains(next)) {
+                            continue;
+                        }
+                        Member nextMember = memberMap.get(next);
+                        if (nextMember == null) {
+                            continue;
+                        }
+                        int generationDiff = Math.abs(nextMember.getGeneration() - currentMember.getGeneration());
+                        if (generationDiff > 1) {
+                            continue;
+                        }
+                        bloodSelected.add(next);
+                        levelMap.put(next, step);
+                        nextFrontier.add(next);
+                    }
+                }
+
+                for (Relationship rel : relationships) {
+                    if (!isMarriageRelation(rel.getRelation())) {
+                        continue;
+                    }
+                    int m1 = rel.getMember1();
+                    int m2 = rel.getMember2();
+                    if (bloodSelected.contains(m1) && !spouseSelected.contains(m2)) {
+                        spouseSelected.add(m2);
+                        levelMap.putIfAbsent(m2, levelMap.getOrDefault(m1, step));
+                    }
+                    if (bloodSelected.contains(m2) && !spouseSelected.contains(m1)) {
+                        spouseSelected.add(m1);
+                        levelMap.putIfAbsent(m1, levelMap.getOrDefault(m2, step));
+                    }
+                }
+
+                if (nextFrontier.isEmpty()) {
+                    break;
+                }
+                frontier = nextFrontier;
+            }
+
+            int centerGeneration = center.getGeneration();
+            Set<Integer> nodeIds = new HashSet<>(bloodSelected);
+            nodeIds.addAll(spouseSelected);
+
+            Set<Integer> filteredNodeIds = new HashSet<>();
+            for (Integer id : nodeIds) {
+                Member member = memberMap.get(id);
+                if (member == null) {
+                    continue;
+                }
+                int steps = levelMap.getOrDefault(id, generations);
+                if (steps <= generations || id == centerId) {
+                    filteredNodeIds.add(id);
+                    memberMap.put(id, member);
+                }
+            }
+
+            List<KinshipNetworkNode> nodes = new ArrayList<>();
+            for (Integer id : filteredNodeIds) {
+                Member member = memberMap.get(id);
+                if (member != null) {
+                    nodes.add(new KinshipNetworkNode(
+                            member.getMemberID(),
+                            member.getName(),
+                            member.getGender(),
+                            member.getGeneration(),
+                            levelMap.getOrDefault(id, generations)
+                    ));
+                }
+            }
+            nodes.sort(Comparator.comparingInt(KinshipNetworkNode::getId));
+
+            Map<String, List<Relationship>> edgeGroups = new HashMap<>();
+            for (Relationship rel : relationships) {
+                if (filteredNodeIds.contains(rel.getMember1()) && filteredNodeIds.contains(rel.getMember2()) && isDisplayRelation(rel.getRelation())) {
+                    int a = Math.min(rel.getMember1(), rel.getMember2());
+                    int b = Math.max(rel.getMember1(), rel.getMember2());
+                    String key = a + "-" + b;
+                    edgeGroups.computeIfAbsent(key, k -> new ArrayList<>()).add(rel);
+                }
+            }
+
+            List<KinshipNetworkEdge> edges = new ArrayList<>();
+            for (List<Relationship> rels : edgeGroups.values()) {
+                if (rels.isEmpty()) {
+                    continue;
+                }
+                Relationship first = rels.get(0);
+                int a = Math.min(first.getMember1(), first.getMember2());
+                int b = Math.max(first.getMember1(), first.getMember2());
+                String label = buildMergedRelationLabel(rels, memberMap);
+                String edgeType = isMarriageRelation(first.getRelation()) ? "marriage" : "blood";
+                edges.add(new KinshipNetworkEdge(a, b, first.getRelation(), label, edgeType));
+            }
+
+            int hiddenRelationsCount = 0;
+            for (Relationship rel : relationships) {
+                if (filteredNodeIds.contains(rel.getMember1()) && filteredNodeIds.contains(rel.getMember2()) && !isDisplayRelation(rel.getRelation())) {
+                    hiddenRelationsCount++;
+                }
+            }
+
+            return new KinshipNetworkResult(centerId, generations, centerGeneration, nodes, edges, hiddenRelationsCount);
+        } catch (SQLException e) {
+            logger.error("Error building kinship network: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isBloodRelation(int relationType) {
+        return relationType >= 3 && relationType <= 26;
+    }
+
+    private boolean isMarriageRelation(int relationType) {
+        return relationType == 1 || relationType == 2;
+    }
+
+    private boolean isDisplayRelation(int relationType) {
+        return relationType >= 1 && relationType <= 32;
+    }
+
+    private String buildMergedRelationLabel(List<Relationship> rels, Map<Integer, Member> memberMap) {
+        Set<Integer> types = new HashSet<>();
+        Map<String, Integer> dirTypes = new HashMap<>();
+        for (Relationship rel : rels) {
+            types.add(rel.getRelation());
+            dirTypes.put(rel.getMember1() + "-" + rel.getMember2(), rel.getRelation());
+        }
+
+        if (types.contains(1) && types.contains(2)) {
+            return "夫妻";
+        }
+
+        for (Relationship rel : rels) {
+            if (rel.getRelation() == 3 || rel.getRelation() == 4) {
+                int parentId = rel.getMember2();
+                int childId = rel.getMember1();
+                Integer reverseType = dirTypes.get(parentId + "-" + childId);
+                if (reverseType != null && reverseType >= 5 && reverseType <= 10) {
+                    Member child = memberMap.get(childId);
+                    boolean childMale = child != null ? child.getGender() == 0 : reverseType <= 7;
+                    if (rel.getRelation() == 3) {
+                        return childMale ? "父子" : "父女";
+                    }
+                    return childMale ? "母子" : "母女";
+                }
+            }
+        }
+
+        boolean hasSibling = false;
+        for (int type : types) {
+            if (type >= 11 && type <= 14) {
+                hasSibling = true;
+                break;
+            }
+        }
+        if (hasSibling) {
+            Integer[] ids = extractPairIds(rels);
+            Member m1 = ids != null ? memberMap.get(ids[0]) : null;
+            Member m2 = ids != null ? memberMap.get(ids[1]) : null;
+            if (m1 != null && m2 != null) {
+                if (m1.getGender() == 0 && m2.getGender() == 0) {
+                    return "兄弟";
+                }
+                if (m1.getGender() == 1 && m2.getGender() == 1) {
+                    return "姐妹";
+                }
+            }
+            if (types.contains(12) && types.contains(13)) {
+                return "姐弟";
+            }
+            if (types.contains(11) && types.contains(14)) {
+                return "兄妹";
+            }
+            return "兄妹";
+        }
+
+        if (types.contains(27) && types.contains(32)) {
+            return "岳父/女婿";
+        }
+        if (types.contains(28) && types.contains(32)) {
+            return "岳母/女婿";
+        }
+        if (types.contains(29) && types.contains(31)) {
+            return "公公/儿媳";
+        }
+        if (types.contains(30) && types.contains(31)) {
+            return "婆婆/儿媳";
+        }
+
+        return rels.get(0).getRelationshipDescription();
+    }
+
+    private Integer[] extractPairIds(List<Relationship> rels) {
+        if (rels == null || rels.isEmpty()) {
+            return null;
+        }
+        Relationship first = rels.get(0);
+        int a = Math.min(first.getMember1(), first.getMember2());
+        int b = Math.max(first.getMember1(), first.getMember2());
+        return new Integer[]{a, b};
+    }
+
+    public static class KinshipNetworkNode {
+        private final int id;
+        private final String name;
+        private final int gender;
+        private final int generation;
+        private final int level;
+
+        public KinshipNetworkNode(int id, String name, int gender, int generation, int level) {
+            this.id = id;
+            this.name = name;
+            this.gender = gender;
+            this.generation = generation;
+            this.level = level;
+        }
+
+        public int getId() { return id; }
+        public String getName() { return name; }
+        public int getGender() { return gender; }
+        public int getGeneration() { return generation; }
+        public int getLevel() { return level; }
+    }
+
+    public static class KinshipNetworkEdge {
+        private final int fromId;
+        private final int toId;
+        private final int relationType;
+        private final String description;
+        private final String edgeType;
+
+        public KinshipNetworkEdge(int fromId, int toId, int relationType, String description, String edgeType) {
+            this.fromId = fromId;
+            this.toId = toId;
+            this.relationType = relationType;
+            this.description = description;
+            this.edgeType = edgeType;
+        }
+
+        public int getFromId() { return fromId; }
+        public int getToId() { return toId; }
+        public int getRelationType() { return relationType; }
+        public String getDescription() { return description; }
+        public String getEdgeType() { return edgeType; }
+    }
+
+    public static class KinshipNetworkResult {
+        private final int centerId;
+        private final int generations;
+        private final int centerGeneration;
+        private final List<KinshipNetworkNode> nodes;
+        private final List<KinshipNetworkEdge> edges;
+        private final int hiddenRelationsCount;
+
+        public KinshipNetworkResult(int centerId, int generations, int centerGeneration, List<KinshipNetworkNode> nodes, List<KinshipNetworkEdge> edges, int hiddenRelationsCount) {
+            this.centerId = centerId;
+            this.generations = generations;
+            this.centerGeneration = centerGeneration;
+            this.nodes = nodes;
+            this.edges = edges;
+            this.hiddenRelationsCount = hiddenRelationsCount;
+        }
+
+        public int getCenterId() { return centerId; }
+        public int getGenerations() { return generations; }
+        public int getCenterGeneration() { return centerGeneration; }
+        public List<KinshipNetworkNode> getNodes() { return nodes; }
+        public List<KinshipNetworkEdge> getEdges() { return edges; }
+        public int getHiddenRelationsCount() { return hiddenRelationsCount; }
+    }
+}

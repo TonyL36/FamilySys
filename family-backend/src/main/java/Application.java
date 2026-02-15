@@ -1,6 +1,7 @@
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import controller.KinshipNetworkController;
 import controller.MemberController;
 import controller.RelationshipController;
 import repository.MemberRepository;
@@ -104,6 +105,7 @@ public class Application {
             // 设置控制器（包装 CORS，允许前端跨域访问）
             server.createContext("/member", withSecurity(new MemberController(memberService, maxBodyBytes, maxQueryLength, maxNameLength, maxGeneration)));
             server.createContext("/relationship", withSecurity(new RelationshipController(relationshipService, maxBodyBytes, maxQueryLength)));
+            server.createContext("/kinship-network", withSecurity(new KinshipNetworkController(relationshipService, maxQueryLength)));
 
             server.setExecutor(null);
             server.start();
