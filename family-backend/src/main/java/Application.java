@@ -26,7 +26,7 @@ public class Application {
     private static final Logger logger = LogManager.getLogger(Application.class);
     private static final Map<String, RateLimitEntry> rateLimit = new ConcurrentHashMap<>();
     private static int rateLimitPerMinute = 300;
-    private static String apiKey = "";
+    private static Set<String> apiKeys = Set.of();
     private static Set<String> allowedOrigins = Set.of("*");
 
     private static HttpHandler withSecurity(HttpHandler handler) {
@@ -47,9 +47,9 @@ public class Application {
                 exchange.close();
                 return;
             }
-            if (apiKey != null && !apiKey.isEmpty()) {
+            if (apiKeys != null && !apiKeys.isEmpty()) {
                 String requestKey = exchange.getRequestHeaders().getFirst("X-API-Key");
-                if (requestKey == null || !requestKey.equals(apiKey)) {
+                if (requestKey == null || !apiKeys.contains(requestKey)) {
                     byte[] payload = "{\"error\":\"Unauthorized\"}".getBytes();
                     exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
                     exchange.sendResponseHeaders(401, payload.length);
@@ -79,7 +79,12 @@ public class Application {
         try {
             Properties prop = loadProperties();
             int port = Integer.parseInt(prop.getProperty("server.port", "8000"));
-            apiKey = prop.getProperty("security.apiKey", "");
+            String adminKey = prop.getProperty("security.apiKey", "");
+            String userKey = prop.getProperty("security.userApiKey", "");
+            apiKeys = Arrays.stream(new String[]{adminKey, userKey})
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
             rateLimitPerMinute = Integer.parseInt(prop.getProperty("security.rateLimitPerMinute", "300"));
             String allowed = prop.getProperty("security.allowedOrigins", "*");
             if (allowed != null && !allowed.isBlank()) {

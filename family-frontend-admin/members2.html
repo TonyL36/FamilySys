@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成员管理系统</title>
+    <style>
+        /* 保持原有样式不变 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #2563eb;
+            border-bottom: 2px solid #2563eb;
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .header-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
+        }
+        .header-tab:hover {
+            color: #1e40af;
+            background: #dbeafe;
+        }
+        .header-tab.active {
+            color: #1d4ed8;
+            border-bottom: 2px solid #1d4ed8;
+            margin-bottom: -2px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .matched-field {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.12);
+        }
+        .remark-cell {
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-form input {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        button:disabled {
+            background-color: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        .delete-btn {
+            background-color: #dc2626;
+        }
+
+        .delete-btn:hover {
+            background-color: #b91c1c;
+        }
+
+        .delete-btn.confirm {
+            background-color: #991b1b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+        }
+
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .error-message {
+            color: #dc2626;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .success-message {
+            color: #16a34a;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        body {
+            color: #0f172a;
+            background: radial-gradient(circle at top, #e0f2fe 0%, #f8fafc 55%, #f1f5f9 100%);
+        }
+        .container {
+            max-width: 1280px;
+            padding: 24px;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 35%, #38bdf8 100%);
+            border-radius: 14px;
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+        }
+        .page-title { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+        .page-subtitle { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .page-badge {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 999px;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.6);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+            padding: 6px 8px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(6px);
+        }
+        .header-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #475569;
+            border-radius: 10px;
+            transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+        .header-tab:hover {
+            color: #1e40af;
+            background: rgba(219, 234, 254, 0.8);
+            transform: translateY(-1px);
+        }
+        .header-tab.active {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.12);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <div class="page-title">成员管理</div>
+                <div class="page-subtitle">维护成员信息与基础数据</div>
+            </div>
+            <div class="page-badge">MEMBER</div>
+        </div>
+        <div class="header-tabs">
+            <button class="header-tab active" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab" onclick="location.href='family-tree-final.html'">家族关系树</button>
+            <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
+            <button class="header-tab" onclick="location.href='kinship-network.html'">近亲网状视图</button>
+        </div>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="list">成员列表</button>
+            <button class="tab" data-tab="search">查询成员</button>
+            <button class="tab" data-tab="add">添加成员</button>
+            <button class="tab" data-tab="edit">维护成员</button>
+        </div>
+
+        <div id="list" class="tab-content active">
+            <table id="members-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>姓名</th>
+                        <th>代数</th>
+                        <th>性别</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="search" class="tab-content">
+            <form class="search-form" id="search-form">
+                <input type="text" placeholder="输入成员姓名" id="search-input" required>
+                <button type="submit">搜索</button>
+            </form>
+            <div id="search-results"></div>
+            <div id="search-remark" style="margin-top: 12px;"></div>
+        </div>
+
+        <div id="add" class="tab-content">
+            <div class="form-container">
+                <form id="add-form">
+                    <div class="form-group">
+                        <label for="name">姓名</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="generation">代数</label>
+                        <input type="number" id="generation" name="generation" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="gender">性别</label>
+                        <select id="gender" name="gender" required>
+                            <option value="0">男</option>
+                            <option value="1">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="remark">备注</label>
+                        <textarea id="remark" name="remark" rows="3" placeholder="填写成员备注"></textarea>
+                    </div>
+                    <button type="submit">添加成员</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="edit" class="tab-content">
+            <div class="form-container">
+                <form id="edit-form">
+                    <div class="form-group">
+                        <label for="edit-id">成员ID</label>
+                        <input type="number" id="edit-id" name="id">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-name">姓名</label>
+                        <select id="edit-name" name="name" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-gender">性别</label>
+                        <select id="edit-gender" name="gender" required>
+                            <option value="0">男</option>
+                            <option value="1">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-remark">备注</label>
+                        <textarea id="edit-remark" name="remark" rows="3" placeholder="填写成员备注"></textarea>
+                    </div>
+                    <button type="submit">保存修改</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const API_KEY = 'YLqWKfriSzxY4p2MTYjXEa63km86v9O6W4LoEOEM8vuXR7leJ9LZSr0g0Dafq_Dw';
+
+        // 通用的 fetch 配置
+        const fetchConfig = {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-API-Key': API_KEY
+            },
+            // credentials: 'include',
+            mode:  'cors'
+        };
+
+        // 切换标签页
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // 获取所有成员
+        async function fetchMembers() {
+            try {
+               
+                const response = await fetch(`${API_BASE_URL}/member`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                // console.log("Response status:", response.status);
+                if (!response.ok) throw new Error('Failed to fetch members');
+                const members = await response.json();
+                // console.log(members);
+                membersCache = Array.isArray(members) ? members : [];
+                updateMemberNameList(membersCache);
+                renderMembersTable(members);
+            } catch (error) {
+                console.error('Error:', error);
+                showError('获取成员列表失败');
+            }
+        }
+
+        // 渲染成员表格
+        function renderMembersTable(members, container = 'members-table', options = { showRemark: true }) {
+            const tbody = document.querySelector(`#${container} tbody`) || 
+                         document.querySelector('#search-results');
+            tbody.innerHTML = '';
+
+            members.forEach(member => {
+                const tr = document.createElement('tr');
+                const remarkValue = member.remark || '';
+                const nameValue = member.name || '';
+                const remarkDisplay = truncateRemark(remarkValue);
+                tr.innerHTML = `
+                    <td>${member.id}</td>
+                    <td>${nameValue}</td>
+                    <td>${member.generation}</td>
+                    <td>${member.gender === 0 ? '男' : '女'}</td>
+                    ${options.showRemark ? `<td class="remark-cell" title="${escapeHtml(remarkValue)}">${remarkDisplay}</td>` : ''}
+                    <td>
+                        <button class="edit-btn" data-id="${member.id}" data-name="${encodeURIComponent(nameValue)}" data-remark="${encodeURIComponent(remarkValue)}" data-gender="${member.gender}">编辑</button>
+                        <button class="delete-btn" data-id="${member.id}">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', handleEdit);
+            });
+
+            // 添加删除按钮事件监听
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', handleDelete);
+            });
+        }
+
+        function handleEdit(e) {
+            const btn = e.target;
+            const id = btn.dataset.id;
+            const name = decodeURIComponent(btn.dataset.name || '');
+            const remark = decodeURIComponent(btn.dataset.remark || '');
+            const gender = btn.dataset.gender;
+
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-name').value = name;
+            document.getElementById('edit-remark').value = remark;
+            if (gender !== undefined) {
+                document.getElementById('edit-gender').value = String(gender);
+            }
+            applyMatchedStyle(true);
+
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector('.tab[data-tab="edit"]').classList.add('active');
+            document.getElementById('edit').classList.add('active');
+        }
+
+        let membersCache = [];
+
+        function updateMemberNameList(members) {
+            const select = document.getElementById('edit-name');
+            if (!select) return;
+            const options = members.map(member => `<option value="${member.name}">${member.name} (ID: ${member.id})</option>`).join('');
+            select.innerHTML = `<option value="">选择成员...</option>${options}`;
+        }
+
+        function syncEditFormById(idValue) {
+            const id = parseInt(idValue, 10);
+            if (!id) {
+                applyMatchedStyle(false);
+                return;
+            }
+            const member = membersCache.find(m => m.id === id);
+            if (!member) {
+                applyMatchedStyle(false);
+                return;
+            }
+            document.getElementById('edit-name').value = member.name || '';
+            document.getElementById('edit-remark').value = member.remark || '';
+            document.getElementById('edit-gender').value = String(member.gender);
+            applyMatchedStyle(true);
+        }
+
+        function syncEditFormByName(nameValue) {
+            const name = (nameValue || '').trim();
+            if (!name) {
+                applyMatchedStyle(false);
+                return;
+            }
+            const member = membersCache.find(m => m.name === name);
+            if (!member) {
+                applyMatchedStyle(false);
+                return;
+            }
+            document.getElementById('edit-id').value = member.id;
+            document.getElementById('edit-remark').value = member.remark || '';
+            document.getElementById('edit-gender').value = String(member.gender);
+            applyMatchedStyle(true);
+        }
+
+        function applyMatchedStyle(isMatched) {
+            const idInput = document.getElementById('edit-id');
+            const nameSelect = document.getElementById('edit-name');
+            if (isMatched) {
+                idInput.classList.add('matched-field');
+                nameSelect.classList.add('matched-field');
+            } else {
+                idInput.classList.remove('matched-field');
+                nameSelect.classList.remove('matched-field');
+            }
+        }
+
+        function truncateRemark(value) {
+            const limit = 12;
+            if (!value) return '';
+            return value.length > limit ? `${value.slice(0, limit)}...` : value;
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        // 处理删除操作
+        async function handleDelete(e) {
+            const btn = e.target;
+            const id = btn.dataset.id;
+
+            if (btn.classList.contains('confirm')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/member/${id}`, {
+                        ...fetchConfig,
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) throw new Error('Failed to delete member');
+                    fetchMembers();
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError('删除成员失败');
+                }
+            } else {
+                btn.textContent = '确认删除';
+                btn.classList.add('confirm');
+                
+                // 5秒后恢复原状
+                setTimeout(() => {
+                    btn.textContent = '删除';
+                    btn.classList.remove('confirm');
+                }, 5000);
+            }
+        }
+
+        // 添加成员表单提交
+        document.getElementById('add-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/member`, {
+                    ...fetchConfig,
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: form.name.value,
+                        generation: parseInt(form.generation.value),
+                        gender: parseInt(form.gender.value),
+                        remark: form.remark.value || null
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to create member');
+                
+                form.reset();
+                showSuccess('成员添加成功');
+                fetchMembers();
+            } catch (error) {
+                console.error('Error:', error);
+                showError('添加成员失败');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // 搜索成员
+        document.getElementById('search-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = true;
+
+            try {
+                const name = document.getElementById('search-input').value;
+                const response = await fetch(`${API_BASE_URL}/member?name=${encodeURIComponent(name)}`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                
+                if (response.status === 404) {
+                    document.getElementById('search-results').innerHTML = '<p>未找到相关成员</p>';
+                    document.getElementById('search-remark').textContent = '';
+                    return;
+                }
+
+                if (!response.ok) throw new Error('Failed to search members');
+                
+                const members = await response.json();
+                const table = document.createElement('table');
+                table.id = 'search-results-table';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>姓名</th>
+                            <th>代数</th>
+                            <th>性别</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+                document.getElementById('search-results').innerHTML = '';
+                document.getElementById('search-results').appendChild(table);
+                const list = Array.isArray(members) ? members : [members];
+                renderMembersTable(list, 'search-results-table', { showRemark: false });
+                renderSearchRemark(list);
+            } catch (error) {
+                console.error('Error:', error);
+                showError('搜索成员失败');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.querySelector('.container').insertAdjacentElement('afterbegin', errorDiv);
+            setTimeout(() => errorDiv.remove(), 3000);
+        }
+
+        // 显示成功信息
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            document.querySelector('.container').insertAdjacentElement('afterbegin', successDiv);
+            setTimeout(() => successDiv.remove(), 3000);
+        }
+
+        function renderSearchRemark(list) {
+            const container = document.getElementById('search-remark');
+            if (!container) return;
+            if (!list || list.length === 0) {
+                container.textContent = '';
+                return;
+            }
+            if (list.length === 1) {
+                const remark = list[0].remark || '无';
+                container.innerHTML = `<strong>备注：</strong>${escapeHtml(remark)}`;
+                return;
+            }
+            const items = list.map(m => `<li>ID ${m.id}：${escapeHtml(m.remark || '无')}</li>`).join('');
+            container.innerHTML = `<strong>备注：</strong><ul style="margin: 6px 0 0 18px;">${items}</ul>`;
+        }
+
+        document.getElementById('edit-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = true;
+
+            try {
+                const id = form.id.value;
+                if (!id) {
+                    showError('请选择要维护的成员');
+                    return;
+                }
+                const response = await fetch(`${API_BASE_URL}/member/${id}`, {
+                    ...fetchConfig,
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        name: form.name.value,
+                        gender: parseInt(form.gender.value),
+                        remark: form.remark.value || null
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to update member');
+
+                showSuccess('成员信息已更新');
+                fetchMembers();
+            } catch (error) {
+                console.error('Error:', error);
+                showError('更新成员失败');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('edit-id').addEventListener('input', (e) => {
+            syncEditFormById(e.target.value);
+        });
+
+        document.getElementById('edit-name').addEventListener('change', (e) => {
+            syncEditFormByName(e.target.value);
+        });
+
+        // 初始化加载
+        fetchMembers();
+    </script>
+</body>
+</html>

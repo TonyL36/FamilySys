@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家族关系树</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            background: #fff;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            padding: 0 8px;
+        }
+        .header-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #64748b;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s, border-color 0.2s;
+        }
+        .header-tab:hover {
+            color: #1e40af;
+            background: #dbeafe;
+        }
+        .header-tab.active {
+            color: #1d4ed8;
+            border-bottom: 2px solid #1d4ed8;
+            margin-bottom: -2px;
+            font-weight: 600;
+        }
+        #tree-container {
+            width: 100%;
+            height: 800px;
+            margin-top: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
+        }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; color: #475569; }
+        select {
+            width: 100%;
+            max-width: 320px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .error-message { color: #dc2626; margin-top: 8px; font-size: 14px; }
+        body {
+            color: #0f172a;
+            background: radial-gradient(circle at top, #e0f2fe 0%, #f8fafc 55%, #f1f5f9 100%);
+        }
+        .container {
+            max-width: 1280px;
+            padding: 24px;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 35%, #38bdf8 100%);
+            border-radius: 14px;
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+        }
+        .page-title { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+        .page-subtitle { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .page-badge {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 999px;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.6);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+            padding: 6px 8px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(6px);
+        }
+        .header-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #475569;
+            border-radius: 10px;
+            transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+        .header-tab:hover {
+            color: #1e40af;
+            background: rgba(219, 234, 254, 0.8);
+            transform: translateY(-1px);
+        }
+        .header-tab.active {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.12);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <div class="page-title">家族关系树</div>
+                <div class="page-subtitle">查看家族结构与代际关系</div>
+            </div>
+            <div class="page-badge">FAMILY TREE</div>
+        </div>
+        <div class="header-tabs">
+            <button class="header-tab" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab active">家族关系树</button>
+            <button class="header-tab" onclick="location.href='distant-relative.html'">远亲关系查询</button>
+            <button class="header-tab" onclick="location.href='kinship-network.html'">近亲网状视图</button>
+        </div>
+        <div class="controls">
+            <div class="form-group">
+                <label for="root-member">选择起始成员：</label>
+                <select id="root-member"></select>
+            </div>
+            <button onclick="generateTree()">生成关系树</button>
+        </div>
+        <div id="tree-container"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8001';
+        const API_KEY = 'geUDpiPcALu/hC5YlgPM8MUcBTfTnhdCKN02fTICx7c=';
+        let allMembers = [];
+        let allRelationships = [];
+        let myChart = null;
+
+        // 通用的 fetch 配置
+        const fetchConfig = {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-API-Key': API_KEY
+            },
+            mode: 'cors'
+        };
+
+        // 初始化图表
+        function initChart() {
+            if (myChart) {
+                myChart.dispose();
+            }
+            myChart = echarts.init(document.getElementById('tree-container'));
+            
+            // 默认配置（原版）
+            const option = {
+                tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+                series: [{
+                    type: 'tree',
+                    data: [],
+                    top: '5%',
+                    left: '20%',
+                    bottom: '5%',
+                    right: '20%',
+                    symbolSize: 10,
+                    orient: 'vertical',
+                    layout: 'orthogonal',
+                    initialTreeDepth: -1,
+                    lineStyle: { color: '#2563eb', width: 2, curveness: 0.5 },
+                    label: { position: 'top', rotate: 0, verticalAlign: 'middle', align: 'middle', fontSize: 14 },
+                    leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'middle' } },
+                    emphasis: { focus: 'descendant' },
+                    expandAndCollapse: true,
+                    animationDuration: 550,
+                    animationDurationUpdate: 750
+                }]
+            };
+            
+            myChart.setOption(option);
+        }
+
+        // 获取所有成员
+        async function loadMembers() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/member`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                if (!response.ok) throw new Error('Failed to fetch members');
+                allMembers = await response.json();
+                
+                // 填充选择框
+                const select = document.getElementById('root-member');
+                select.innerHTML = allMembers
+                    .map(member => `<option value="${member.id}">${member.name} (ID: ${member.id})</option>`)
+                    .join('');
+            } catch (error) {
+                console.error('Error:', error);
+                showError('获取成员列表失败');
+            }
+        }
+
+        // 获取所有关系
+        async function loadRelationships() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/relationship`, {
+                    ...fetchConfig,
+                    method: 'GET'
+                });
+                if (!response.ok) throw new Error('Failed to fetch relationships');
+                allRelationships = await response.json();
+            } catch (error) {
+                console.error('Error:', error);
+                showError('获取关系列表失败');
+            }
+        }
+
+        // 查找成员的所有子女
+        function findChildren(memberId) {
+            const children = allRelationships
+                .filter(rel => 
+                    rel.member1 === memberId && 
+                    [5, 6, 7, 8, 9, 10].includes(rel.relation) // 子女关系
+                )
+                .sort((a, b) => a.relation - b.relation) // 按照辈分排序
+                .map(rel => {
+                    const child = allMembers.find(m => m.id === rel.member2);
+                    return {
+                        name: child.name,
+                        id: child.id,
+                        children: [] // 预留子节点
+                    };
+                });
+            return children;
+        }
+
+        // 查找配偶
+        function findSpouse(memberId) {
+            const spouseRel = allRelationships.find(rel => 
+                (rel.member1 === memberId && [1, 2].includes(rel.relation)) || // 丈夫、妻子
+                (rel.member2 === memberId && [1, 2].includes(rel.relation))
+            );
+
+            if (spouseRel) {
+                const spouseId = spouseRel.member1 === memberId ? spouseRel.member2 : spouseRel.member1;
+                const spouse = allMembers.find(m => m.id === spouseId);
+                return {
+                    name: spouse.name,
+                    id: spouse.id,
+                    children: []
+                };
+            }
+            return null;
+        }
+
+        // 递归构建树（原版：配偶先加入子节点，再添加子女）
+        function buildFamilyTree(memberId) {
+            const member = allMembers.find(m => m.id === memberId);
+            if (!member) return null;
+
+            const node = {
+                name: member.name,
+                id: member.id,
+                children: []
+            };
+
+            // 查找配偶并单独显示
+            const spouse = findSpouse(memberId);
+            if (spouse) {
+                node.children.push({
+                    name: spouse.name,
+                    id: spouse.id,
+                    children: [],
+                    lineStyle: {
+                        color: '#e11d48',
+                        width: 2,
+                        type: 'dashed'
+                    }
+                });
+            }
+
+            // 查找并添加子女
+            const children = findChildren(memberId);
+            for (const child of children) {
+                const childTree = buildFamilyTree(child.id);
+                if (childTree) {
+                    node.children.push(childTree);
+                }
+            }
+
+            return node;
+        }
+
+        // 生成家族树
+        async function generateTree() {
+            const rootMemberId = parseInt(document.getElementById('root-member').value);
+            if (!rootMemberId) {
+                showError('请选择起始成员');
+                return;
+            }
+
+            // 构建树形数据
+            const treeData = buildFamilyTree(rootMemberId);
+            if (!treeData) {
+                showError('生成家族树失败');
+                return;
+            }
+
+            // 更新图表（原版配置）
+            myChart.setOption({
+                series: [{
+                    type: 'tree',
+                    data: [treeData],
+                    top: '5%',
+                    left: '20%',
+                    bottom: '5%',
+                    right: '20%',
+                    symbolSize: 10,
+                    orient: 'vertical',
+                    layout: 'orthogonal',
+                    initialTreeDepth: -1,
+                    lineStyle: { color: '#2563eb', width: 2, curveness: 0.5 },
+                    label: { position: 'top', rotate: 0, verticalAlign: 'middle', align: 'middle', fontSize: 14 },
+                    leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'middle' } },
+                    emphasis: { focus: 'descendant' },
+                    expandAndCollapse: true,
+                    animationDuration: 550,
+                    animationDurationUpdate: 750
+                }]
+            });
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            document.querySelector('.controls').appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 3000);
+        }
+
+        // 页面加载完成后初始化
+        window.onload = async function() {
+            initChart();
+            await loadMembers();
+            await loadRelationships();
+            
+            // 自适应窗口大小
+            window.onresize = function() {
+                myChart.resize();
+            };
+        };
+    </script>
+</body>
+</html>

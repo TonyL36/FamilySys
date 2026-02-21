@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>远亲关系查询</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; background: #f8fafc; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        .header-tabs { display: flex; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; gap: 4px; }
+        .header-tab {
+            padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 16px; color: #64748b;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
+        }
+        .header-tab:hover { color: #1e40af; background: #dbeafe; }
+        .header-tab.active { color: #1d4ed8; border-bottom: 2px solid #1d4ed8; margin-bottom: -2px; font-weight: 600; }
+        .card {
+            background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 24px;
+        }
+        .card h2 { font-size: 18px; color: #1e293b; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+        .query-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .query-row label { font-weight: 500; color: #475569; }
+        .query-row select {
+            min-width: 220px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px;
+        }
+        .query-row button {
+            padding: 10px 20px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: 15px; cursor: pointer;
+        }
+        .query-row button:hover { background: #1d4ed8; }
+        .query-row button:disabled { background: #93c5fd; cursor: not-allowed; }
+        .result-summary { margin-bottom: 20px; padding: 12px; border-radius: 6px; font-size: 15px; }
+        .result-summary.success { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        .result-summary.fail { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .kinship-info { margin-top: 10px; padding: 10px; background: #f1f5f9; border-radius: 6px; font-size: 14px; color: #475569; }
+        .kinship-info strong { color: #1e293b; }
+        #graph-container {
+            min-height: 280px; padding: 24px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
+            overflow: auto;
+        }
+        #graph-svg { display: block; margin: 0 auto; }
+        .node rect { fill: #2563eb; stroke: #1d4ed8; stroke-width: 2; rx: 8; }
+        .node text { fill: #fff; font-size: 14px; font-weight: 500; text-anchor: middle; }
+        .link line { stroke: #64748b; stroke-width: 2; }
+        .link text { fill: #475569; font-size: 13px; font-weight: 500; text-anchor: middle; }
+        body {
+            color: #0f172a;
+            background: radial-gradient(circle at top, #e0f2fe 0%, #f8fafc 55%, #f1f5f9 100%);
+        }
+        .container {
+            max-width: 1280px;
+            padding: 24px;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 35%, #38bdf8 100%);
+            border-radius: 14px;
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+        }
+        .page-title { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+        .page-subtitle { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .page-badge {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 999px;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .header-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.6);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+            padding: 6px 8px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(6px);
+        }
+        .header-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #475569;
+            border-radius: 10px;
+            transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+        .header-tab:hover {
+            color: #1e40af;
+            background: rgba(219, 234, 254, 0.8);
+            transform: translateY(-1px);
+        }
+        .header-tab.active {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.12);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <div class="page-title">远亲关系查询</div>
+                <div class="page-subtitle">查询两成员之间的关系链</div>
+            </div>
+            <div class="page-badge">DISTANT</div>
+        </div>
+        <div class="header-tabs">
+            <button class="header-tab" onclick="location.href='members2.html'">成员管理</button>
+            <button class="header-tab" onclick="location.href='relationships4.html'">关系管理</button>
+            <button class="header-tab" onclick="location.href='family-tree-final.html'">家族关系树</button>
+            <button class="header-tab active">远亲关系查询</button>
+            <button class="header-tab" onclick="location.href='kinship-network.html'">近亲网状视图</button>
+        </div>
+
+        <div class="card">
+            <h2>选择两人查询关系链</h2>
+            <div class="query-row">
+                <label>成员一</label>
+                <select id="member1-id"><option value="">请选择...</option></select>
+                <label>成员二</label>
+                <select id="member2-id"><option value="">请选择...</option></select>
+                <button type="button" id="btn-query">查询关系链</button>
+            </div>
+        </div>
+
+        <div class="card" id="result-card" style="display: none;">
+            <h2>查询结果</h2>
+            <div id="result-summary" class="result-summary"></div>
+            <div id="kinship-info" class="kinship-info" style="display: none;"></div>
+            <div id="graph-container">
+                <svg id="graph-svg"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const API_KEY = 'YLqWKfriSzxY4p2MTYjXEa63km86v9O6W4LoEOEM8vuXR7leJ9LZSr0g0Dafq_Dw';
+        const fetchConfig = { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-API-Key': API_KEY }, mode: 'cors' };
+
+        let cachedMembers = null;
+
+        function fillMemberSelects(members) {
+            if (!members || !members.length) return;
+            const opt = members.map(m => `<option value="${m.id}">${m.name} (ID: ${m.id})</option>`).join('');
+            document.getElementById('member1-id').innerHTML = '<option value="">请选择...</option>' + opt;
+            document.getElementById('member2-id').innerHTML = '<option value="">请选择...</option>' + opt;
+        }
+
+        async function loadMembers(forceRefresh) {
+            if (cachedMembers != null && !forceRefresh) {
+                fillMemberSelects(cachedMembers);
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE_URL}/member`, { ...fetchConfig, method: 'GET' });
+                if (!res.ok) throw new Error('获取成员失败');
+                const members = await res.json();
+                members.sort((a, b) => b.id - a.id);
+                cachedMembers = members;
+                fillMemberSelects(cachedMembers);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // 根据亲缘系数 φ 返回颜色：φ 越大（越亲）颜色越深
+            function colorByKinship(phi) {
+                if (phi >= 0.25) return { fill: '#1e40af', stroke: '#1e3a8a' };   // 很亲
+                if (phi >= 0.125) return { fill: '#2563eb', stroke: '#1d4ed8' };   // 较亲，如堂兄弟
+                if (phi >= 0.0625) return { fill: '#3b82f6', stroke: '#2563eb' };
+                if (phi >= 0.03125) return { fill: '#60a5fa', stroke: '#3b82f6' }; // 远房二从
+                return { fill: '#93c5fd', stroke: '#60a5fa' };                     // 更远
+            }
+
+            function isBloodRelationType(relationType) {
+                if (relationType == null || relationType <= 0) return false;
+                return relationType >= 3 && relationType <= 26;
+            }
+
+            function isBloodRelationDesc(desc) {
+                if (!desc) return false;
+                if (desc.includes('妻') || desc.includes('夫') || desc.includes('媳') || desc.includes('婿') || desc.includes('公公') || desc.includes('婆婆')) return false;
+                return desc.includes('父') || desc.includes('母') || desc.includes('子') || desc.includes('女') || desc.includes('兄') || desc.includes('弟') || desc.includes('姐') || desc.includes('妹') || desc.includes('祖') || desc.includes('孙') || desc.includes('堂') || desc.includes('表');
+            }
+
+            function bloodStepWeight(edge) {
+                if (!edge) return 0;
+                const t = edge.relationType;
+                if (t === 19 || t === 20 || t === 21 || t === 22 || t === 23 || t === 24 || t === 25 || t === 26) return 2;
+                if (t != null && t > 0) return isBloodRelationType(t) ? 1 : 0;
+                const desc = edge.description || '';
+                if (desc.includes('爷爷') || desc.includes('奶奶') || desc.includes('外祖父') || desc.includes('外祖母') || desc.includes('祖辈') || desc.includes('孙辈') || desc.includes('外孙')) return 2;
+                return isBloodRelationDesc(desc) ? 1 : 0;
+            }
+
+            function orderPath(pathNodes, pathEdges, member1Id, member2Id) {
+                if (!pathNodes || !pathEdges || pathEdges.length === 0) return { nodes: pathNodes, edges: pathEdges };
+                const nodeMap = new Map(pathNodes.map(n => [String(n.id), n]));
+                const edges = [];
+                const nodes = [];
+                let current = member1Id != null ? String(member1Id) : (pathEdges[0].fromId != null ? String(pathEdges[0].fromId) : null);
+                if (current == null) return { nodes: pathNodes, edges: pathEdges };
+                const startNode = nodeMap.get(current) || { id: parseInt(current, 10), name: 'ID:' + current };
+                nodes.push(startNode);
+                const used = new Set();
+                for (let i = 0; i < pathEdges.length; i++) {
+                    let foundIndex = -1;
+                    for (let j = 0; j < pathEdges.length; j++) {
+                        if (used.has(j)) continue;
+                        if (String(pathEdges[j].fromId) === current) { foundIndex = j; break; }
+                    }
+                    if (foundIndex === -1) break;
+                    const edge = pathEdges[foundIndex];
+                    used.add(foundIndex);
+                    edges.push(edge);
+                    current = String(edge.toId);
+                    nodes.push(nodeMap.get(current) || { id: parseInt(current, 10), name: 'ID:' + current });
+                }
+                if (edges.length !== pathEdges.length) return { nodes: pathNodes, edges: pathEdges };
+                if (member2Id != null && String(member2Id) !== current) return { nodes: pathNodes, edges: pathEdges };
+                return { nodes, edges };
+            }
+
+            function renderGraph(pathNodes, pathEdges, kinshipCoefficient, member1Id, member2Id) {
+            const svg = document.getElementById('graph-svg');
+            svg.innerHTML = '';
+            if (!pathNodes || pathNodes.length === 0) return;
+
+            const ordered = orderPath(pathNodes, pathEdges, member1Id, member2Id);
+            pathNodes = ordered.nodes;
+            pathEdges = ordered.edges;
+
+            const nodeW = 100, nodeH = 44, gap = 120, labelGap = 36, padding = 48;
+            const totalW = padding + pathNodes.length * nodeW + (pathNodes.length - 1) * gap;
+            const totalH = nodeH + 2 * labelGap;
+            svg.setAttribute('width', Math.max(totalW, 400));
+            svg.setAttribute('height', totalH);
+
+            const phi = kinshipCoefficient != null ? kinshipCoefficient : 0.5;
+            const colors = colorByKinship(phi);
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+            pathNodes.forEach((n, i) => {
+                const x = padding / 2 + 24 + i * (nodeW + gap) + nodeW / 2;
+                const y = labelGap + nodeH / 2;
+                const nodeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                nodeG.setAttribute('class', 'node');
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', x - nodeW / 2);
+                rect.setAttribute('y', y - nodeH / 2);
+                rect.setAttribute('width', nodeW);
+                rect.setAttribute('height', nodeH);
+                rect.setAttribute('rx', 8);
+                rect.setAttribute('fill', colors.fill);
+                rect.setAttribute('stroke', colors.stroke);
+                rect.setAttribute('stroke-width', 2);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', y + 5);
+                text.setAttribute('fill', '#fff');
+                text.setAttribute('font-size', 14);
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = n.name || ('ID:' + n.id);
+                nodeG.appendChild(rect);
+                nodeG.appendChild(text);
+                g.appendChild(nodeG);
+            });
+
+            pathEdges.forEach((e, i) => {
+                const x1 = padding / 2 + 24 + i * (nodeW + gap) + nodeW;
+                const x2 = padding / 2 + 24 + (i + 1) * (nodeW + gap);
+                const y = labelGap + nodeH / 2;
+                const linkG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                linkG.setAttribute('class', 'link');
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y);
+                line.setAttribute('stroke', colors.stroke);
+                line.setAttribute('stroke-width', 2);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', (x1 + x2) / 2);
+                text.setAttribute('y', y - 10);
+                text.setAttribute('fill', '#475569');
+                text.setAttribute('font-size', 13);
+                text.setAttribute('text-anchor', 'middle');
+                text.textContent = e.description || '';
+                linkG.appendChild(line);
+                linkG.appendChild(text);
+                g.appendChild(linkG);
+            });
+
+            svg.appendChild(g);
+        }
+
+        document.getElementById('btn-query').addEventListener('click', async () => {
+            const m1 = document.getElementById('member1-id').value;
+            const m2 = document.getElementById('member2-id').value;
+            const card = document.getElementById('result-card');
+            const summary = document.getElementById('result-summary');
+
+            if (!m1 || !m2) {
+                summary.className = 'result-summary fail';
+                summary.textContent = '请选择两个成员后再查询。';
+                card.style.display = 'block';
+                renderGraph([], [], null, m1, m2);
+                return;
+            }
+            if (m1 === m2) {
+                summary.className = 'result-summary fail';
+                summary.textContent = '请选择不同的两名成员。';
+                card.style.display = 'block';
+                renderGraph([], [], null, m1, m2);
+                return;
+            }
+
+            const btn = document.getElementById('btn-query');
+            btn.disabled = true;
+            summary.className = 'result-summary';
+            summary.textContent = '正在查询...';
+            card.style.display = 'block';
+            renderGraph([], [], null, m1, m2);
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/relationship?distantRelative=&member1ID=${m1}&member2ID=${m2}`, { ...fetchConfig, method: 'GET' });
+                if (!res.ok) throw new Error('请求失败');
+                const result = await res.json();
+
+                if (result.isDistantRelative) {
+                    summary.className = 'result-summary success';
+                    summary.textContent = '';
+                    summary.style.display = 'none';
+                    const kinDiv = document.getElementById('kinship-info');
+                    const pathLen = result.pathLength != null ? result.pathLength : (result.pathEdges && result.pathEdges.length);
+                    const phi = result.kinshipCoefficient != null ? result.kinshipCoefficient : (pathLen > 0 ? Math.pow(0.5, pathLen) : 1);
+                    const bloodSteps = Array.isArray(result.pathEdges)
+                        ? result.pathEdges.reduce((sum, e) => sum + bloodStepWeight(e), 0)
+                        : 0;
+                    const bloodExponent = bloodSteps > 0 ? (bloodSteps - 1) : 0;
+                    const bloodPhi = Math.pow(0.5, bloodExponent);
+                    kinDiv.style.display = 'block';
+                    let kinHtml = '';
+                    kinHtml += '<strong>血缘紧密度</strong>：φ = ' + bloodPhi.toFixed(4) + '（指数 ' + bloodExponent + '，血缘步数 ' + bloodSteps + '）。<br>';
+                    kinHtml += '<strong>关系链深度</strong>：φ = ' + phi.toFixed(4) + '（路径 ' + (pathLen || 0) + ' 步）。颜色越深表示越亲。';
+                    kinDiv.innerHTML = kinHtml;
+                    const colorPhi = bloodPhi > 0 ? bloodPhi : phi;
+                    renderGraph(result.pathNodes || [], result.pathEdges || [], colorPhi, m1, m2);
+                } else {
+                    summary.className = 'result-summary fail';
+                    summary.textContent = result.description || '无亲属关系。';
+                    summary.style.display = 'block';
+                    document.getElementById('kinship-info').style.display = 'none';
+                    renderGraph([], [], null, m1, m2);
+                }
+            } catch (e) {
+                console.error(e);
+                summary.className = 'result-summary fail';
+                summary.textContent = '查询失败：' + (e.message || '网络或服务异常');
+                summary.style.display = 'block';
+                renderGraph([], [], null, m1, m2);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        loadMembers();
+
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) loadMembers(false);
+        });
+    </script>
+</body>
+</html>
