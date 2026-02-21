@@ -56,7 +56,7 @@ public class DataExportImport {
         JSONArray relationships = new JSONArray();
 
         try (Connection conn = openConnection(dbPath);
-             PreparedStatement stmt = conn.prepareStatement("SELECT MemberID, Name, Generation, Gender FROM Members ORDER BY MemberID");
+             PreparedStatement stmt = conn.prepareStatement("SELECT MemberID, Name, Generation, Gender, Remark FROM Members ORDER BY MemberID");
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 JSONObject m = new JSONObject();
@@ -64,6 +64,7 @@ public class DataExportImport {
                 m.put("name", rs.getString("Name"));
                 m.put("generation", rs.getInt("Generation"));
                 m.put("gender", rs.getInt("Gender"));
+                m.put("remark", rs.getString("Remark"));
                 members.put(m);
             }
         }
@@ -174,20 +175,21 @@ public class DataExportImport {
              Statement stmt = conn.createStatement()) {
             stmt.execute("DROP TABLE IF EXISTS Members");
             stmt.execute("DROP TABLE IF EXISTS Relationships");
-            stmt.execute("CREATE TABLE IF NOT EXISTS Members (MemberID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Generation INTEGER NOT NULL, Gender INTEGER NOT NULL)");
+            stmt.execute("CREATE TABLE IF NOT EXISTS Members (MemberID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL, Generation INTEGER NOT NULL, Gender INTEGER NOT NULL, Remark TEXT)");
             stmt.execute("CREATE TABLE IF NOT EXISTS Relationships (RelationID INTEGER PRIMARY KEY AUTOINCREMENT, member1 INTEGER NOT NULL, member2 INTEGER NOT NULL, relation INTEGER NOT NULL, FOREIGN KEY(member1) REFERENCES Members(MemberID), FOREIGN KEY(member2) REFERENCES Members(MemberID))");
         }
     }
 
     private static void insertMembers(Path dbPath, JSONArray members) throws Exception {
         try (Connection conn = openConnection(dbPath);
-             PreparedStatement stmt = conn.prepareStatement("INSERT INTO Members(MemberID, Name, Generation, Gender) VALUES(?, ?, ?, ?)")) {
+             PreparedStatement stmt = conn.prepareStatement("INSERT INTO Members(MemberID, Name, Generation, Gender, Remark) VALUES(?, ?, ?, ?, ?)")) {
             for (int i = 0; i < members.length(); i++) {
                 JSONObject m = members.getJSONObject(i);
                 stmt.setInt(1, m.getInt("id"));
                 stmt.setString(2, m.getString("name"));
                 stmt.setInt(3, m.getInt("generation"));
-                stmt.setInt(4, m.getInt("gender"));
+            stmt.setInt(4, m.getInt("gender"));
+            stmt.setString(5, m.optString("remark", null));
                 stmt.addBatch();
             }
             stmt.executeBatch();

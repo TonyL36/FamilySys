@@ -14,7 +14,11 @@ public class MemberRepository {
     private static final Logger logger = LogManager.getLogger(MemberRepository.class);
 
     public Member addMember(String name, int generation, int gender) throws SQLException {
-        String sql = "INSERT INTO Members(Name, Generation, Gender) VALUES(?, ?, ?)";
+        return addMember(name, generation, gender, null);
+    }
+
+    public Member addMember(String name, int generation, int gender, String remark) throws SQLException {
+        String sql = "INSERT INTO Members(Name, Generation, Gender, Remark) VALUES(?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -22,6 +26,7 @@ public class MemberRepository {
             pstmt.setString(1, name);
             pstmt.setInt(2, generation);
             pstmt.setInt(3, gender);
+            pstmt.setString(4, remark);
 
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows == 0) {
@@ -31,7 +36,7 @@ public class MemberRepository {
             try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     int id = generatedKeys.getInt(1);
-                    return new Member(id, name, generation, gender);
+                    return new Member(id, name, generation, gender, remark);
                 } else {
                     throw new SQLException("Creating member failed, no ID obtained.");
                 }
@@ -52,7 +57,8 @@ public class MemberRepository {
                             rs.getInt("MemberID"),
                             rs.getString("Name"),
                             rs.getInt("Generation"),
-                            rs.getInt("Gender")
+                            rs.getInt("Gender"),
+                            rs.getString("Remark")
                     );
                 }
             }
@@ -73,7 +79,8 @@ public class MemberRepository {
                             rs.getInt("MemberID"),
                             rs.getString("Name"),
                             rs.getInt("Generation"),
-                            rs.getInt("Gender")
+                            rs.getInt("Gender"),
+                            rs.getString("Remark")
                     );
                 }
             }
@@ -94,11 +101,28 @@ public class MemberRepository {
                         rs.getInt("MemberID"),
                         rs.getString("Name"),
                         rs.getInt("Generation"),
-                        rs.getInt("Gender")
+                        rs.getInt("Gender"),
+                        rs.getString("Remark")
                 ));
             }
         }
         return members;
+    }
+
+    public boolean updateMember(int memberId, String name, int gender, String remark) throws SQLException {
+        String sql = "UPDATE Members SET Name = ?, Gender = ?, Remark = ? WHERE MemberID = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, name);
+            pstmt.setInt(2, gender);
+            pstmt.setString(3, remark);
+            pstmt.setInt(4, memberId);
+
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        }
     }
 
     public boolean deleteMember(int memberId) throws SQLException {

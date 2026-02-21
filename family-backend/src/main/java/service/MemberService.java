@@ -28,6 +28,17 @@ public class MemberService {
         }
     }
 
+    public Member addMember(String name, int generation, int gender, String remark) {
+        try {
+            Member member = memberRepository.addMember(name, generation, gender, remark);
+            logger.info("Member added: {}", member);
+            return member;
+        } catch (SQLException e) {
+            logger.error("Error adding member: {}", e.getMessage());
+            throw new RuntimeException("Error adding member", e);
+        }
+    }
+
     public Member findMemberById(int memberId) {
         try {
             Member member = memberRepository.findMemberById(memberId);
@@ -66,6 +77,22 @@ public class MemberService {
         } catch (SQLException e) {
             logger.error("Error getting all members: {}", e.getMessage());
             throw new RuntimeException("Error getting all members", e);
+        }
+    }
+
+    public Member updateMember(int memberId, String name, int gender, String remark) {
+        try {
+            boolean updated = memberRepository.updateMember(memberId, name, gender, remark);
+            if (!updated) {
+                logger.warn("Member not found for update with ID: {}", memberId);
+                return null;
+            }
+            Member member = memberRepository.findMemberById(memberId);
+            logger.info("Member updated: {}", member);
+            return member;
+        } catch (SQLException e) {
+            logger.error("Error updating member: {}", e.getMessage());
+            throw new RuntimeException("Error updating member", e);
         }
     }
 

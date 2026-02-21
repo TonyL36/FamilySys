@@ -42,6 +42,9 @@ public class MemberController implements HttpHandler {
                 case "POST":
                     handlePost(exchange);
                     break;
+                case "PUT":
+                    handlePut(exchange);
+                    break;
                 case "DELETE":
                     handleDelete(exchange);
                     break;
@@ -159,8 +162,21 @@ public class MemberController implements HttpHandler {
                 return;
             }
 
+            String remark = null;
+            if (json.has("remark") && !json.isNull("remark")) {
+                remark = json.optString("remark", null);
+                if (remark != null && remark.length() > maxQueryLength) {
+                    sendResponse(exchange, 400, createErrorResponse("Remark is too long"), "no-store");
+                    return;
+                }
+                if (remark != null && containsControlChars(remark)) {
+                    sendResponse(exchange, 400, createErrorResponse("Remark is invalid"), "no-store");
+                    return;
+                }
+            }
+
             // 添加成员
-            Member newMember = memberService.addMember(name, generation, gender);
+            Member newMember = memberService.addMember(name, generation, gender, remark);
             if (newMember != null) {
                 sendResponse(exchange, 201, memberToJson(newMember).toString(), "no-store");
             } else {
@@ -168,6 +184,113 @@ public class MemberController implements HttpHandler {
             }
         } catch (Exception e) {
             logger.error("Error in handlePost: {}", e.getMessage());
+            sendResponse(exchange, 500, createErrorResponse("Internal Server Error"), "no-store");
+        }
+    }
+
+    private void handlePut(HttpExchange exchange) throws IOException {
+        try {
+            String path = exchange.getRequestURI().getPath();
+            String[] pathParts = path.split("/");
+
+            if (pathParts.length != 3) {
+                sendResponse(exchange, 400, createErrorResponse("Invalid request path"), "no-store");
+                return;
+            }
+
+            int memberId;
+            try {
+                memberId = Integer.parseInt(pathParts[2]);
+                if (memberId <= 0) {
+                    sendResponse(exchange, 400, createErrorResponse("Member ID must be positive"), "no-store");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                sendResponse(exchange, 400, createErrorResponse("Invalid member ID format"), "no-store");
+                return;
+            }
+
+            String requestBody = readRequestBody(exchange);
+            if (requestBody == null) {
+                sendResponse(exchange, 413, createErrorResponse("Request body too large"), "no-store");
+                return;
+            }
+            if (requestBody == null || requestBody.trim().isEmpty()) {
+                sendResponse(exchange, 400, createErrorResponse("Request body cannot be empty"), "no-store");
+                return;
+            }
+
+            JSONObject json;
+            try {
+                json = new JSONObject(requestBody);
+            } catch (Exception e) {
+                sendResponse(exchange, 400, createErrorResponse("Invalid JSON format"), "no-store");
+                return;
+            }
+
+            if (!json.has("name") && !json.has("remark") && !json.has("gender")) {
+                sendResponse(exchange, 400, createErrorResponse("Missing required fields: name, remark, or gender"), "no-store");
+                return;
+            }
+
+            String name = null;
+            if (json.has("name") && !json.isNull("name")) {
+                name = json.getString("name");
+                if (name.trim().isEmpty()) {
+                    sendResponse(exchange, 400, createErrorResponse("Name cannot be empty"), "no-store");
+                    return;
+                }
+                if (name.length() > maxNameLength || containsControlChars(name)) {
+                    sendResponse(exchange, 400, createErrorResponse("Name is invalid"), "no-store");
+                    return;
+                }
+            }
+
+            String remark = null;
+            if (json.has("remark") && !json.isNull("remark")) {
+                remark = json.optString("remark", null);
+                if (remark != null && remark.length() > maxQueryLength) {
+                    sendResponse(exchange, 400, createErrorResponse("Remark is too long"), "no-store");
+                    return;
+                }
+                if (remark != null && containsControlChars(remark)) {
+                    sendResponse(exchange, 400, createErrorResponse("Remark is invalid"), "no-store");
+                    return;
+                }
+            }
+
+            Integer gender = null;
+            if (json.has("gender") && !json.isNull("gender")) {
+                try {
+                    gender = json.getInt("gender");
+                    if (gender != 0 && gender != 1) {
+                        sendResponse(exchange, 400, createErrorResponse("Gender must be 0 (Male) or 1 (Female)"), "no-store");
+                        return;
+                    }
+                } catch (Exception e) {
+                    sendResponse(exchange, 400, createErrorResponse("Gender must be a valid integer (0 or 1)"), "no-store");
+                    return;
+                }
+            }
+
+            Member existing = memberService.findMemberById(memberId);
+            if (existing == null) {
+                sendResponse(exchange, 404, createErrorResponse("Member not found"), "no-store");
+                return;
+            }
+
+            String updatedName = name != null ? name : existing.getName();
+            String updatedRemark = json.has("remark") ? remark : existing.getRemark();
+            int updatedGender = gender != null ? gender : existing.getGender();
+
+            Member updated = memberService.updateMember(memberId, updatedName, updatedGender, updatedRemark);
+            if (updated != null) {
+                sendResponse(exchange, 200, memberToJson(updated).toString(), "no-store");
+            } else {
+                sendResponse(exchange, 404, createErrorResponse("Member not found"), "no-store");
+            }
+        } catch (Exception e) {
+            logger.error("Error in handlePut: {}", e.getMessage());
             sendResponse(exchange, 500, createErrorResponse("Internal Server Error"), "no-store");
         }
     }
@@ -223,6 +346,7 @@ public class MemberController implements HttpHandler {
         json.put("generation", member.getGeneration());
         json.put("gender", member.getGender());
         json.put("genderText", member.getGender() == 0 ? "Male" : "Female");
+        json.put("remark", member.getRemark());
         return json;
     }
 

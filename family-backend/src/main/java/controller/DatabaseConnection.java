@@ -71,7 +71,8 @@ public static Connection getConnection() throws SQLException {
                 "MemberID INTEGER PRIMARY KEY AUTOINCREMENT," +
                 "Name TEXT NOT NULL," +
                 "Generation INTEGER NOT NULL," +
-                "Gender INTEGER NOT NULL)";
+                "Gender INTEGER NOT NULL," +
+                "Remark TEXT)";
 
         // 创建Relationships表
         String createRelationshipsTable = "CREATE TABLE IF NOT EXISTS Relationships (" +
@@ -85,6 +86,10 @@ public static Connection getConnection() throws SQLException {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute(createMembersTable);
             stmt.execute(createRelationshipsTable);
+            try {
+                stmt.execute("ALTER TABLE Members ADD COLUMN Remark TEXT");
+            } catch (SQLException ignored) {
+            }
         }
     }
 }

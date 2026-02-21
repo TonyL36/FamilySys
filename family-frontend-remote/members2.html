@@ -89,12 +89,22 @@
             font-weight: 500;
         }
 
-        input, select {
+        input, select, textarea {
             width: 100%;
             padding: 8px 12px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 16px;
+        }
+        .matched-field {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.12);
+        }
+        .remark-cell {
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .search-form {
@@ -255,6 +265,7 @@
             <button class="tab active" data-tab="list">成员列表</button>
             <button class="tab" data-tab="search">查询成员</button>
             <button class="tab" data-tab="add">添加成员</button>
+            <button class="tab" data-tab="edit">维护成员</button>
         </div>
 
         <div id="list" class="tab-content active">
@@ -265,6 +276,7 @@
                         <th>姓名</th>
                         <th>代数</th>
                         <th>性别</th>
+                        <th>备注</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -278,6 +290,7 @@
                 <button type="submit">搜索</button>
             </form>
             <div id="search-results"></div>
+            <div id="search-remark" style="margin-top: 12px;"></div>
         </div>
 
         <div id="add" class="tab-content">
@@ -298,7 +311,38 @@
                             <option value="1">女</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="remark">备注</label>
+                        <textarea id="remark" name="remark" rows="3" placeholder="填写成员备注"></textarea>
+                    </div>
                     <button type="submit">添加成员</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="edit" class="tab-content">
+            <div class="form-container">
+                <form id="edit-form">
+                    <div class="form-group">
+                        <label for="edit-id">成员ID</label>
+                        <input type="number" id="edit-id" name="id">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-name">姓名</label>
+                        <select id="edit-name" name="name" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-gender">性别</label>
+                        <select id="edit-gender" name="gender" required>
+                            <option value="0">男</option>
+                            <option value="1">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-remark">备注</label>
+                        <textarea id="edit-remark" name="remark" rows="3" placeholder="填写成员备注"></textarea>
+                    </div>
+                    <button type="submit">保存修改</button>
                 </form>
             </div>
         </div>
@@ -343,6 +387,8 @@
                 if (!response.ok) throw new Error('Failed to fetch members');
                 const members = await response.json();
                 // console.log(members);
+                membersCache = Array.isArray(members) ? members : [];
+                updateMemberNameList(membersCache);
                 renderMembersTable(members);
             } catch (error) {
                 console.error('Error:', error);
@@ -351,29 +397,129 @@
         }
 
         // 渲染成员表格
-        function renderMembersTable(members, container = 'members-table') {
+        function renderMembersTable(members, container = 'members-table', options = { showRemark: true }) {
             const tbody = document.querySelector(`#${container} tbody`) || 
                          document.querySelector('#search-results');
             tbody.innerHTML = '';
 
             members.forEach(member => {
                 const tr = document.createElement('tr');
+                const remarkValue = member.remark || '';
+                const nameValue = member.name || '';
+                const remarkDisplay = truncateRemark(remarkValue);
                 tr.innerHTML = `
                     <td>${member.id}</td>
-                    <td>${member.name}</td>
+                    <td>${nameValue}</td>
                     <td>${member.generation}</td>
                     <td>${member.gender === 0 ? '男' : '女'}</td>
+                    ${options.showRemark ? `<td class="remark-cell" title="${escapeHtml(remarkValue)}">${remarkDisplay}</td>` : ''}
                     <td>
+                        <button class="edit-btn" data-id="${member.id}" data-name="${encodeURIComponent(nameValue)}" data-remark="${encodeURIComponent(remarkValue)}" data-gender="${member.gender}">编辑</button>
                         <button class="delete-btn" data-id="${member.id}">删除</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
 
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', handleEdit);
+            });
+
             // 添加删除按钮事件监听
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', handleDelete);
             });
+        }
+
+        function handleEdit(e) {
+            const btn = e.target;
+            const id = btn.dataset.id;
+            const name = decodeURIComponent(btn.dataset.name || '');
+            const remark = decodeURIComponent(btn.dataset.remark || '');
+            const gender = btn.dataset.gender;
+
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-name').value = name;
+            document.getElementById('edit-remark').value = remark;
+            if (gender !== undefined) {
+                document.getElementById('edit-gender').value = String(gender);
+            }
+            applyMatchedStyle(true);
+
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector('.tab[data-tab="edit"]').classList.add('active');
+            document.getElementById('edit').classList.add('active');
+        }
+
+        let membersCache = [];
+
+        function updateMemberNameList(members) {
+            const select = document.getElementById('edit-name');
+            if (!select) return;
+            const options = members.map(member => `<option value="${member.name}">${member.name} (ID: ${member.id})</option>`).join('');
+            select.innerHTML = `<option value="">选择成员...</option>${options}`;
+        }
+
+        function syncEditFormById(idValue) {
+            const id = parseInt(idValue, 10);
+            if (!id) {
+                applyMatchedStyle(false);
+                return;
+            }
+            const member = membersCache.find(m => m.id === id);
+            if (!member) {
+                applyMatchedStyle(false);
+                return;
+            }
+            document.getElementById('edit-name').value = member.name || '';
+            document.getElementById('edit-remark').value = member.remark || '';
+            document.getElementById('edit-gender').value = String(member.gender);
+            applyMatchedStyle(true);
+        }
+
+        function syncEditFormByName(nameValue) {
+            const name = (nameValue || '').trim();
+            if (!name) {
+                applyMatchedStyle(false);
+                return;
+            }
+            const member = membersCache.find(m => m.name === name);
+            if (!member) {
+                applyMatchedStyle(false);
+                return;
+            }
+            document.getElementById('edit-id').value = member.id;
+            document.getElementById('edit-remark').value = member.remark || '';
+            document.getElementById('edit-gender').value = String(member.gender);
+            applyMatchedStyle(true);
+        }
+
+        function applyMatchedStyle(isMatched) {
+            const idInput = document.getElementById('edit-id');
+            const nameSelect = document.getElementById('edit-name');
+            if (isMatched) {
+                idInput.classList.add('matched-field');
+                nameSelect.classList.add('matched-field');
+            } else {
+                idInput.classList.remove('matched-field');
+                nameSelect.classList.remove('matched-field');
+            }
+        }
+
+        function truncateRemark(value) {
+            const limit = 12;
+            if (!value) return '';
+            return value.length > limit ? `${value.slice(0, limit)}...` : value;
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
         }
 
         // 处理删除操作
@@ -419,7 +565,8 @@
                     body: JSON.stringify({
                         name: form.name.value,
                         generation: parseInt(form.generation.value),
-                        gender: parseInt(form.gender.value)
+                        gender: parseInt(form.gender.value),
+                        remark: form.remark.value || null
                     })
                 });
 
@@ -452,6 +599,7 @@
                 
                 if (response.status === 404) {
                     document.getElementById('search-results').innerHTML = '<p>未找到相关成员</p>';
+                    document.getElementById('search-remark').textContent = '';
                     return;
                 }
 
@@ -474,7 +622,9 @@
                 `;
                 document.getElementById('search-results').innerHTML = '';
                 document.getElementById('search-results').appendChild(table);
-                renderMembersTable(Array.isArray(members) ? members : [members], 'search-results-table');
+                const list = Array.isArray(members) ? members : [members];
+                renderMembersTable(list, 'search-results-table', { showRemark: false });
+                renderSearchRemark(list);
             } catch (error) {
                 console.error('Error:', error);
                 showError('搜索成员失败');
@@ -500,6 +650,63 @@
             document.querySelector('.container').insertAdjacentElement('afterbegin', successDiv);
             setTimeout(() => successDiv.remove(), 3000);
         }
+
+        function renderSearchRemark(list) {
+            const container = document.getElementById('search-remark');
+            if (!container) return;
+            if (!list || list.length === 0) {
+                container.textContent = '';
+                return;
+            }
+            if (list.length === 1) {
+                const remark = list[0].remark || '无';
+                container.innerHTML = `<strong>备注：</strong>${escapeHtml(remark)}`;
+                return;
+            }
+            const items = list.map(m => `<li>ID ${m.id}：${escapeHtml(m.remark || '无')}</li>`).join('');
+            container.innerHTML = `<strong>备注：</strong><ul style="margin: 6px 0 0 18px;">${items}</ul>`;
+        }
+
+        document.getElementById('edit-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = true;
+
+            try {
+                const id = form.id.value;
+                if (!id) {
+                    showError('请选择要维护的成员');
+                    return;
+                }
+                const response = await fetch(`${API_BASE_URL}/member/${id}`, {
+                    ...fetchConfig,
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        name: form.name.value,
+                        gender: parseInt(form.gender.value),
+                        remark: form.remark.value || null
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to update member');
+
+                showSuccess('成员信息已更新');
+                fetchMembers();
+            } catch (error) {
+                console.error('Error:', error);
+                showError('更新成员失败');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        document.getElementById('edit-id').addEventListener('input', (e) => {
+            syncEditFormById(e.target.value);
+        });
+
+        document.getElementById('edit-name').addEventListener('change', (e) => {
+            syncEditFormByName(e.target.value);
+        });
 
         // 初始化加载
         fetchMembers();

@@ -190,7 +190,7 @@ public class DataExportCompare {
     private static String renderMembersTable(List<JSONObject> list, String rowClass) {
         StringBuilder sb = new StringBuilder();
         sb.append("<table><thead><tr>");
-        sb.append("<th>ID</th><th>姓名</th><th>代际</th><th>性别</th>");
+        sb.append("<th>ID</th><th>姓名</th><th>代际</th><th>性别</th><th>备注</th>");
         sb.append("</tr></thead><tbody>");
         for (JSONObject m : list) {
             sb.append("<tr class=\"").append(rowClass).append("\">");
@@ -198,10 +198,11 @@ public class DataExportCompare {
             sb.append("<td>").append(escape(m.getString("name"))).append("</td>");
             sb.append("<td>").append(m.getInt("generation")).append("</td>");
             sb.append("<td>").append(m.getInt("gender")).append("</td>");
+            sb.append("<td>").append(escape(m.optString("remark", ""))).append("</td>");
             sb.append("</tr>");
         }
         if (list.isEmpty()) {
-            sb.append("<tr><td colspan=\"4\">无</td></tr>");
+            sb.append("<tr><td colspan=\"5\">无</td></tr>");
         }
         sb.append("</tbody></table>");
         return sb.toString();
@@ -226,6 +227,11 @@ public class DataExportCompare {
                 sb.append(changeRow(id, "gender",
                         String.valueOf(c.oldMember.getInt("gender")),
                         String.valueOf(c.newMember.getInt("gender"))));
+            }
+            String oldRemark = c.oldMember.optString("remark", "");
+            String newRemark = c.newMember.optString("remark", "");
+            if (!oldRemark.equals(newRemark)) {
+                sb.append(changeRow(id, "remark", oldRemark, newRemark));
             }
         }
         if (list.isEmpty()) {
