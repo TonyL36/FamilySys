@@ -15,7 +15,30 @@ import java.sql.Statement;
 public class DatabaseConnection {
     private static final String DB_URL = "jdbc:sqlite:family.db";
 
+    private static String resolveFixedDatabasePath() {
+        String override = System.getProperty("family.db.path");
+        if (override == null || override.trim().isEmpty()) {
+            override = System.getenv("FAMILY_DB_PATH");
+        }
+        if (override != null && !override.trim().isEmpty()) {
+            return "jdbc:sqlite:" + new File(override).getAbsolutePath();
+        }
+        String cwd = new File(".").getAbsoluteFile().getPath();
+        String normalized = cwd.replace("\\", "/");
+        if (normalized.contains("/opt/familysys-public")) {
+            return "jdbc:sqlite:/opt/familysys-public/family.db";
+        }
+        if (normalized.contains("/opt/familysys-admin") || normalized.contains("/opt/familysys-user")) {
+            return "jdbc:sqlite:/opt/familysys-data/family.db";
+        }
+        return null;
+    }
+
     private static String getCorrectDatabaseFile() {
+        String fixedPath = resolveFixedDatabasePath();
+        if (fixedPath != null) {
+            return fixedPath;
+        }
         // 1. 优先检查当前工作目录下的 family.db (用于服务器持久化)
         File cwdDb = new File("family.db");
         if (cwdDb.exists()) {
